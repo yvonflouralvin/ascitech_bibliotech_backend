@@ -21,7 +21,7 @@ services:
       - "traefik.enable=true"
 
       # Router
-      - "traefik.http.routers.bibliotech_ascitech_bk.rule=Host(`bibliotech.cd`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.bibliotech_ascitech_bk.rule=Host(`api.bibliotech.cd`) && PathPrefix(`/api`)"
       - "traefik.http.routers.bibliotech_ascitech_bk.entrypoints=websecure"
       - "traefik.http.routers.bibliotech_ascitech_bk.tls=true"
       - "traefik.http.routers.bibliotech_ascitech_bk.tls.certresolver=letsencrypt"
