@@ -84,7 +84,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
+        'NAME': 'bibliotech_db',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'prod_postgres',
