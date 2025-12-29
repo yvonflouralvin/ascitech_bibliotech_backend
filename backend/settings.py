@@ -87,7 +87,7 @@ DATABASES = {
         'NAME': 'postgres',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
-        'HOST': 'bibliotech_ascitech_db',
+        'HOST': 'prod_postgres',
         'PORT': '5432',
     }
 }

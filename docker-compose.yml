@@ -6,6 +6,7 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
+      - /home/projects/bibbliotech/backend/books_content/:/app/books_content
     expose:
       - 8000
     command:
