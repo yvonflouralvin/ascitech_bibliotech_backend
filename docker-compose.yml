@@ -30,6 +30,14 @@ services:
       # Service
       - "traefik.http.services.bibliotech_ascitech_bk.loadbalancer.server.port=8000"
 
+      # ===== CORS MIDDLEWARE =====
+      - "traefik.http.middlewares.bibliotech-cors.headers.accessControlAllowOriginList=https://bibliotech.cd,https://api.bibliotech.cd"
+      - "traefik.http.middlewares.bibliotech-cors.headers.accessControlAllowMethods=GET,POST,PUT,PATCH,DELETE,OPTIONS"
+      - "traefik.http.middlewares.bibliotech-cors.headers.accessControlAllowHeaders=Authorization,Content-Type,Accept,Origin"
+
+      # Attach middleware to router
+      - "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech-cors"
+
       # Auth Basic optionnel (recommandé)
       #- "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech_ascitech_bk-auth"
       #- "traefik.http.middlewares.bibliotech_ascitech_bk-auth.basicauth.users=admin:$$apr1$$xxxxxxxxxxxx"
