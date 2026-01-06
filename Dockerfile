@@ -12,12 +12,12 @@ RUN apk update && apk add --no-cache gcc musl-dev libffi-dev make curl bash
 WORKDIR /app
 
 # --- Copier requirements ---
-#COPY requirements.txt /app/
+COPY requirements.txt /app/
 
 # --- Installer python packages ---
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    pip install whitenoise
+    pip install -r requirements.txt
+#    pip install whitenoise
 
 # --- Copier le code Django ---
 #COPY . /app/
