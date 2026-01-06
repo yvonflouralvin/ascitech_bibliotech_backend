@@ -25,7 +25,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('/', admin.site.urls),
+    path('', admin.site.urls),
     path('api/apps/auth/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/apps/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
