@@ -1,33 +1,16 @@
-# --- Base image ---
 FROM python:3.13.9-alpine3.22
 
-# --- Variables d'environnement ---
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# --- Dépendances système ---
-RUN apk update && apk add --no-cache gcc musl-dev libffi-dev make curl bash
-
-# --- Working directory ---
 WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# --- Copier requirements ---
-COPY requirements.txt /app/
+RUN apk add --no-cache gcc musl-dev libffi-dev bash curl make
 
-# --- Installer python packages ---
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
-#    pip install whitenoise
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# --- Copier le code Django ---
-#COPY . /app/
+# Ne pas copier le code pour garder le volume Dokploy
+# COPY . .
 
-# --- Collect statics ---
-#RUN python manage.py collectstatic --noinput
-
-# --- Exposer le port Django ---
 EXPOSE 8000
-
-# --- Commande par défaut ---
-#CMD ["bash"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
