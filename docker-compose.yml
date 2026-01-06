@@ -38,8 +38,6 @@ services:
       # Attach middleware to router
       - "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech-cors"
 
-       - "traefik.enable=true"
-
       # ===== ADMIN DJANGO VIA bibliotech.cd =====
       - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && PathPrefix(`/admin`)"
       - "traefik.http.routers.bibliotech_admin.entrypoints=websecure"
