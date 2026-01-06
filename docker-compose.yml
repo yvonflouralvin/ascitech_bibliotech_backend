@@ -38,6 +38,20 @@ services:
       # Attach middleware to router
       - "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech-cors"
 
+      # ===== DJANGO ADMIN ROUTER =====
+      - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && PathPrefix(`/admin`)"
+      - "traefik.http.routers.bibliotech_admin.entrypoints=websecure"
+      - "traefik.http.routers.bibliotech_admin.tls=true"
+      - "traefik.http.routers.bibliotech_admin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.bibliotech_admin.priority=200"
+
+      # Service (même backend)
+      #- "traefik.http.routers.bibliotech_admin.service=bibliotech_ascitech_bk"
+      - "traefik.http.services.bibliotech_admin.loadbalancer.server.port=8000"
+
+      # Middlewares
+      - "traefik.http.routers.bibliotech_admin.middlewares=bibliotech-cors"
+
       # Auth Basic optionnel (recommandé)
       #- "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech_ascitech_bk-auth"
       #- "traefik.http.middlewares.bibliotech_ascitech_bk-auth.basicauth.users=admin:$$apr1$$xxxxxxxxxxxx"
