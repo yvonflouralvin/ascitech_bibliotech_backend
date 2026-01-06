@@ -26,14 +26,14 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/apps/auth/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/apps/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('apps/auth/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('apps/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
 
     # Users endpoints
-    path('api/apps/users/', include('users.urls')),
+    path('apps/users/', include('users.urls')),
 
-    path('api/apps/', include('school.urls')),
+    path('apps/', include('school.urls')),
 ]
 
 if settings.DEBUG:
