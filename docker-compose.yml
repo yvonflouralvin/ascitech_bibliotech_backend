@@ -7,10 +7,16 @@ services:
     volumes:
       - ./:/app
       - /home/projects/bibbliotech/backend/books_content/:/app/books_content
+      - static_data:/app/staticfiles
     expose:
       - 8000
     command:
-      sh -c "pip install -r requirements.txt && python manage.py runserver 0.0.0.0:8000" 
+      sh -c "
+      pip install -r requirements.txt &&
+      python manage.py collectstatic --noinput &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+      
     # depends_on:
     #   - bibliotech_ascitech_db
     restart: always
@@ -68,7 +74,10 @@ services:
       # Auth Basic optionnel (recommandé)
       #- "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech_ascitech_bk-auth"
       #- "traefik.http.middlewares.bibliotech_ascitech_bk-auth.basicauth.users=admin:$$apr1$$xxxxxxxxxxxx"
-
+      
+volumes:
+  static_data:
+  
 networks:
   dokploy-network:
     external: true
