@@ -29,4 +29,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # --- Commande par défaut ---
-CMD ["gunicorn", "your_project_name.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
