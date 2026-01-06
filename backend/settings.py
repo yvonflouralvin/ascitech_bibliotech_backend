@@ -162,6 +162,7 @@ REST_FRAMEWORK = {
 }
 
 # CORS config (si tu as un frontend séparé, ex. React/Next.js)
+#Mes changements
 CORS_ALLOWED_ORIGINS = [
     "https://bibliotech.cd",
     "http://localhost:3000",
