@@ -1,86 +1,41 @@
-version: '3'
 services:
   bibliotech_ascitech_bk:
-    image: python:3.13.9-alpine3.22
-    container_name: bibliotech_ascitech_bk 
-    working_dir: /app
+    build: .
+    container_name: bibliotech_ascitech_bk
     volumes:
-      - ./:/app
       - /home/projects/bibbliotech/backend/books_content/:/app/books_content
       - static_data:/app/staticfiles
     expose:
       - 8000
-    command:
-      sh -c "
-      pip install -r requirements.txt &&
-      python manage.py collectstatic --noinput &&
-      python manage.py runserver 0.0.0.0:8000
-      "
-      
-    # depends_on:
-    #   - bibliotech_ascitech_db
     restart: always
     networks:
       - dokploy-network
-    
-    labels: 
+    labels:
       - "traefik.enable=true"
-
-      # Router
+      # Router API
       - "traefik.http.routers.bibliotech_ascitech_bk.rule=Host(`api.bibliotech.cd`) && PathPrefix(`/api`)"
       - "traefik.http.routers.bibliotech_ascitech_bk.entrypoints=websecure"
       - "traefik.http.routers.bibliotech_ascitech_bk.tls=true"
       - "traefik.http.routers.bibliotech_ascitech_bk.tls.certresolver=letsencrypt"
       - "traefik.http.routers.bibliotech_ascitech_bk.priority=100"
-
-      # Service
       - "traefik.http.services.bibliotech_ascitech_bk.loadbalancer.server.port=8000"
-
-      # ===== CORS MIDDLEWARE =====
-      - "traefik.http.middlewares.bibliotech-cors.headers.accessControlAllowOriginList=https://bibliotech.cd,https://api.bibliotech.cd"
-      - "traefik.http.middlewares.bibliotech-cors.headers.accessControlAllowMethods=GET,POST,PUT,PATCH,DELETE,OPTIONS"
-      - "traefik.http.middlewares.bibliotech-cors.headers.accessControlAllowHeaders=Authorization,Content-Type,Accept,Origin"
-
-      # Attach middleware to router
-      - "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech-cors"
-
-      # ===== ADMIN DJANGO VIA bibliotech.cd =====
+      
+      # Admin
       - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && PathPrefix(`/admin`)"
       - "traefik.http.routers.bibliotech_admin.entrypoints=websecure"
       - "traefik.http.routers.bibliotech_admin.tls=true"
       - "traefik.http.routers.bibliotech_admin.tls.certresolver=letsencrypt"
       - "traefik.http.routers.bibliotech_admin.priority=200"
-    
       - "traefik.http.services.bibliotech_admin.loadbalancer.server.port=8000"
 
+      # Static (WhiteNoise)
       - "traefik.http.routers.bibliotech_static.rule=Host(`bibliotech.cd`) && PathPrefix(`/static`)"
-      - "traefik.http.routers.bibliotech_admin.entrypoints=websecure"
-      - "traefik.http.routers.bibliotech_admin.tls=true"
-      - "traefik.http.routers.bibliotech_admin.tls.certresolver=letsencrypt"
       - "traefik.http.routers.bibliotech_static.priority=300"
       - "traefik.http.services.bibliotech_static.loadbalancer.server.port=8000"
 
-      # # ===== DJANGO ADMIN ROUTER =====
-      # - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && PathPrefix(`/admin`)"
-      # - "traefik.http.routers.bibliotech_admin.entrypoints=websecure"
-      # - "traefik.http.routers.bibliotech_admin.tls=true"
-      # - "traefik.http.routers.bibliotech_admin.tls.certresolver=letsencrypt"
-      # - "traefik.http.routers.bibliotech_admin.priority=200"
-
-      # # Service (même backend)
-      # #- "traefik.http.routers.bibliotech_admin.service=bibliotech_ascitech_bk"
-      # - "traefik.http.services.bibliotech_admin.loadbalancer.server.port=8000"
-
-      # # Middlewares
-      # - "traefik.http.routers.bibliotech_admin.middlewares=bibliotech-cors"
-
-      # Auth Basic optionnel (recommandé)
-      #- "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech_ascitech_bk-auth"
-      #- "traefik.http.middlewares.bibliotech_ascitech_bk-auth.basicauth.users=admin:$$apr1$$xxxxxxxxxxxx"
-      
 volumes:
   static_data:
-  
+
 networks:
   dokploy-network:
     external: true
