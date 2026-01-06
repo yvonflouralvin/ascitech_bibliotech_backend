@@ -131,6 +131,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT =  '/app/staticfiles'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -175,4 +176,3 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
