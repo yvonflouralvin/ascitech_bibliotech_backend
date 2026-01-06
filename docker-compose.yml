@@ -39,13 +39,17 @@ services:
       - "traefik.http.routers.bibliotech_ascitech_bk.middlewares=bibliotech-cors"
 
       # ===== ADMIN DJANGO VIA bibliotech.cd =====
-      - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && (PathPrefix(`/admin`) || PathPrefix(`/static`))"
+      - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && PathPrefix(`/admin`)"
       - "traefik.http.routers.bibliotech_admin.entrypoints=websecure"
       - "traefik.http.routers.bibliotech_admin.tls=true"
       - "traefik.http.routers.bibliotech_admin.tls.certresolver=letsencrypt"
       - "traefik.http.routers.bibliotech_admin.priority=200"
     
       - "traefik.http.services.bibliotech_admin.loadbalancer.server.port=8000"
+
+      - "traefik.http.routers.bibliotech_static.rule=Host(`bibliotech.cd`) && PathPrefix(`/static`)"
+      - "traefik.http.routers.bibliotech_static.priority=300"
+      - "traefik.http.services.bibliotech_static.loadbalancer.server.port=8000"
 
       # # ===== DJANGO ADMIN ROUTER =====
       # - "traefik.http.routers.bibliotech_admin.rule=Host(`bibliotech.cd`) && PathPrefix(`/admin`)"
