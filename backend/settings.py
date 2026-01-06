@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', False)
+DEBUG = os.environ.get('DEBUG', True)
 
 ALLOWED_HOSTS = ["bibliotech.cd", "api.bibliotech.cd", "admin.bibliotech.cd"]
 
