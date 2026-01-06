@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["bibliotech.cd", "api.bibliotech.cd"]
+ALLOWED_HOSTS = ["bibliotech.cd", "api.bibliotech.cd", "admin.bibliotech.cd"]
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -142,7 +142,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-CSRF_TRUSTED_ORIGINS = ["https://bibliotech.cd", "https://api.bibliotech.cd"]
+CSRF_TRUSTED_ORIGINS = ["https://bibliotech.cd", "https://api.bibliotech.cd", "https://admin.bibliotech.cd"]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
@@ -165,7 +165,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "https://bibliotech.cd",
     "http://localhost:3000",
-    "https://api.bibliotech.cd"
+    "https://api.bibliotech.cd",
+    "https://admin.bibliotech.cd"
 ]
 
 
