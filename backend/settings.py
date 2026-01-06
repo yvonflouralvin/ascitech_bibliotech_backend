@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 # Pour le refresh/rotation de tokens
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', False)
 
 ALLOWED_HOSTS = ["bibliotech.cd", "api.bibliotech.cd", "admin.bibliotech.cd"]
 
@@ -86,11 +87,11 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bibliotech_db',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'prod_postgres',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME', 'bibliotech_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('DB_HOST', 'prod_postgres'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
