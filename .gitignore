@@ -1,1 +1,30 @@
 /books_content/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+
+# Env / virtualenv
+env/
+venv/
+.venv/
+
+# Static / media
+/staticfiles/
+media/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
