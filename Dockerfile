@@ -20,7 +20,7 @@ RUN pip install --upgrade pip && \
     pip install whitenoise
 
 # --- Copier le code Django ---
-#COPY . /app/
+COPY . /app/
 
 # --- Collect statics ---
 RUN python manage.py collectstatic --noinput
