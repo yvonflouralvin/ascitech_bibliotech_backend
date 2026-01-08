@@ -75,6 +75,12 @@ class BookAdmin(admin.ModelAdmin):
 
     status_colored.short_description = "Statut"
 
+    # ✅ Afficher les classes associées dans la liste
+    def display_allowed_classes(self, obj):
+        return ", ".join([c.name for c in obj.allowed_classes.all()])
+        
+    display_allowed_classes.short_description = "Classes autorisées"
+
 
 # --- Admin pour Student ---
 class StudentAdminForm(forms.ModelForm):
