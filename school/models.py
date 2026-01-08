@@ -1,8 +1,17 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 import uuid
+import os
 
 User = get_user_model()
+
+def book_file_upload_path(instance, filename):
+    """
+    Renomme le fichier avec l'ID du livre (UUID)
+    ex: books/files/<uuid>.pdf
+    """
+    ext = os.path.splitext(filename)[1]  # .pdf, .epub, etc.
+    return f'books/files/{instance.id}{ext}'
 
 class Class(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -48,13 +57,17 @@ class Book(models.Model):
 
     # ✅ Nouveau champ fichier
     book_file = models.FileField(
-        upload_to='books/files/',
+        upload_to=book_file_upload_path,
         blank=True,
         null=True
     )
 
+
     # Nouvelle relation Many-to-Many pour les classes
     allowed_classes = models.ManyToManyField('Class', blank=True, related_name='accessible_books')
+
+    # ✅ Nouveau champ booléen
+    already_process = models.BooleanField(default=False)
 
 
     class Meta:

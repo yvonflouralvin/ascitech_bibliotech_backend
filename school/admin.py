@@ -25,11 +25,17 @@ class ClassAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name',)
 
-# --- Admin pour Book ---
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ('title', 'description')
-    search_fields = ('title','description')
+    list_display = ('title', 'description', 'already_processed_status')
+    search_fields = ('title', 'description')
+    readonly_fields = ('already_process',)  # Empêche la modification directe dans le formulaire
+
+    # Fonction pour afficher le status en texte
+    def already_processed_status(self, obj):
+        return "Traité ✅" if obj.already_process else "Non traité ❌"
+    
+    already_processed_status.short_description = "Statut"
 
 # --- Admin pour Student ---
 class StudentAdminForm(forms.ModelForm):
