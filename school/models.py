@@ -8,10 +8,10 @@ User = get_user_model()
 def book_file_upload_path(instance, filename):
     """
     Renomme le fichier avec l'ID du livre (UUID)
-    ex: books/files/<uuid>.pdf
+    ex: books/<uuid>.pdf
     """
     ext = os.path.splitext(filename)[1]  # .pdf, .epub, etc.
-    return f'books/files/{instance.id}{ext}'
+    return f'books/{instance.id}{ext}'
 
 class Class(models.Model):
     name = models.CharField(max_length=100, unique=True)
