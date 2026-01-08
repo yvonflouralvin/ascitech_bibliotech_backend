@@ -40,6 +40,9 @@ class BookAdmin(admin.ModelAdmin):
         'updated_at',
     )
 
+     # allowed_classes reste modifiable
+    filter_horizontal = ('allowed_classes',)  # pratique pour ManyToManyField
+    
     fieldsets = (
         ('Informations générales', {
             'fields': ('title', 'author', 'description', 'book_format', 'book_file')
