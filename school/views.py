@@ -25,7 +25,7 @@ class BookListAPIView(generics.ListAPIView):
 
         # Staff ou superuser => tous les livres
         if user.is_staff or user.is_superuser:
-            return Book.objects.all().order_by('-created_at')
+            return Book.objects.filter(status='done').order_by('-created_at')
         print('User : ', user)
         students = Student.objects.filter(user__id=user.id)
         print(students)
@@ -35,7 +35,7 @@ class BookListAPIView(generics.ListAPIView):
             print('tu n est pas vide')
             student = students[0]
             student_class = student.school_class
-            return Book.objects.filter(allowed_classes=user.student_profile.school_class).order_by('title')
+            return Book.objects.filter(allowed_classes=user.student_profile.school_class, status='done').order_by('title')
 
         # Sinon aucun livre
         return Book.objects.none()

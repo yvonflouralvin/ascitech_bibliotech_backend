@@ -28,7 +28,11 @@ SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', "True") == True
 
-ALLOWED_HOSTS = ["bibliotech.cd", "api.bibliotech.cd", "admin.bibliotech.cd"]
+ALLOWED_HOSTS = []
+ALLOWED_HOSTS_STRING = os.environ.get("ALLOWED_HOSTS", "localhost")
+ALLOWED_HOSTS_STRING_EXPLODE = str(ALLOWED_HOSTS_STRING).split(",")
+for cao in ALLOWED_HOSTS_STRING_EXPLODE :
+    ALLOWED_HOSTS.append(f'{cao}')
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -51,7 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-     "whitenoise.middleware.WhiteNoiseMiddleware",  # ← JUSTE ICI
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # ← JUSTE ICI
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,8 +90,8 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'bibliotech_db'),
+        'ENGINE': os.environ.get('DB_ENGINE','django.db.backends.sqlite3'),
+        'NAME': os.environ.get('DB_NAME', BASE_DIR / 'db.sqlite3'),
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
         'HOST': os.environ.get('DB_HOST', 'prod_postgres'),
@@ -118,9 +122,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en-us')
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.environ.get('TIME_ZONE', 'UTC')
 
 USE_I18N = True
 
@@ -131,8 +135,21 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT =  '/app/staticfiles'
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+if DEBUG:
+    # Dossier où sont tes fichiers static "bruts" pour dev
+    STATICFILES_DIRS = [BASE_DIR / "static"]
+    # Pas de STATIC_ROOT ni de Whitenoise en dev
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+else:
+    # Production
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -143,11 +160,20 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-CSRF_TRUSTED_ORIGINS = ["https://bibliotech.cd", "https://api.bibliotech.cd", "https://admin.bibliotech.cd"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000"
+]
+CSRF_TRUSTED_ORIGINS_STRING = os.environ.get("CSRF_TRUSTED_ORIGINS", "localhost")
+
+# if CSRF_TRUSTED_ORIGINS_STRING == 'localhost' :
+#     MIDDLEWARE.remove("django.middleware.csrf.CsrfViewMiddleware")
+#     CSRF_TRUSTED_ORIGINS.append("https://localhost:8000")
+# else :
+CSRF_TRUSTED_ORIGINS_STRING_EXPLODE = str(CSRF_TRUSTED_ORIGINS_STRING).split(",")
+for cao in CSRF_TRUSTED_ORIGINS_STRING_EXPLODE :
+    CSRF_TRUSTED_ORIGINS.append(f'https://{cao}')
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
 
 # Django REST Framework config
 REST_FRAMEWORK = {
@@ -164,12 +190,12 @@ REST_FRAMEWORK = {
 
 # CORS config (si tu as un frontend séparé, ex. React/Next.js)
 #Mes changements
-CORS_ALLOWED_ORIGINS = [
-    "https://bibliotech.cd",
-    "http://localhost:3000",
-    "https://api.bibliotech.cd",
-    "https://admin.bibliotech.cd"
-]
+CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS_STRING = os.environ.get("CORS_ALLOWED_ORIGINS", "localhost")
+CORS_ALLOWED_ORIGINS_STRING_EXPLODE = str(CORS_ALLOWED_ORIGINS_STRING).split(",")
+for cao in CORS_ALLOWED_ORIGINS_STRING_EXPLODE :
+    CORS_ALLOWED_ORIGINS.append(f'https://{cao}')
+
 
 
 SIMPLE_JWT = {
