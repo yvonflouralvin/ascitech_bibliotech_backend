@@ -5,6 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import Class, Student, Book
 from django import forms
 from django.db.models import Q
+from django.utils.html import format_html
 
 User = get_user_model()  # ✅ Récupère ton modèle user personnalisé
 
@@ -24,9 +25,6 @@ class UserAdmin(BaseUserAdmin):
 class ClassAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name',)
-
-@admin.register(Book)
-from django.utils.html import format_html
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
