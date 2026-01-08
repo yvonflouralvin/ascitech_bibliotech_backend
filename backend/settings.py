@@ -26,7 +26,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', True)
+debug_env = os.environ.get('DEBUG', "1")
+DEBUG = True if debug_env == "1" else False
 
 ALLOWED_HOSTS = []
 ALLOWED_HOSTS_STRING = os.environ.get("ALLOWED_HOSTS", "localhost")
@@ -136,7 +137,16 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+
+STATICFILES_DIRS = [BASE_DIR / "static"]
+# Pas de STATIC_ROOT ni de Whitenoise en dev
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+"""
 if DEBUG:
+
     # Dossier où sont tes fichiers static "bruts" pour dev
     STATICFILES_DIRS = [BASE_DIR / "static"]
     # Pas de STATIC_ROOT ni de Whitenoise en dev
@@ -150,6 +160,7 @@ else:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+"""
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
