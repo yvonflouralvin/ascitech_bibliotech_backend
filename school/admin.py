@@ -26,25 +26,22 @@ class ClassAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 @admin.register(Book)
-class BookAdmin(admin.ModelAdmin):
-    list_display = (
-        'title',
-        'already_processed_status',
-    )
+from django.utils.html import format_html
 
+@admin.register(Book)
+class BookAdmin(admin.ModelAdmin):
+    list_display = ('title', 'status_colored')
     search_fields = ('title', 'description')
 
-    # ✅ Champs en lecture seule
     readonly_fields = (
         'slug',
         'page',
-        'already_process',
+        'status',
         'processing_error',
         'created_at',
         'updated_at',
     )
 
-    # Organisation du formulaire (optionnel mais recommandé)
     fieldsets = (
         ('Informations générales', {
             'fields': ('title', 'author', 'description', 'book_format', 'book_file')
@@ -53,17 +50,29 @@ class BookAdmin(admin.ModelAdmin):
             'fields': ('publish_state', 'publication_date')
         }),
         ('Statut de traitement', {
-            'fields': ('already_process', 'processing_error')
+            'fields': ('status', 'processing_error')
         }),
         ('Métadonnées (auto)', {
             'fields': ('slug', 'page', 'created_at', 'updated_at')
         }),
     )
 
-    def already_processed_status(self, obj):
-        return "Traité ✅" if obj.already_process else "Non traité ❌"
+    # ✅ Affichage coloré et lisible du status
+    def status_colored(self, obj):
+        color_map = {
+            'pending': 'gray',
+            'processing': 'blue',
+            'done': 'green',
+            'error': 'red',
+        }
+        return format_html(
+            '<span style="color:{}; font-weight:bold;">{}</span>',
+            color_map.get(obj.status, 'black'),
+            obj.get_status_display()
+        )
 
-    already_processed_status.short_description = "Statut"
+    status_colored.short_description = "Statut"
+
 
 # --- Admin pour Student ---
 class StudentAdminForm(forms.ModelForm):

@@ -44,6 +44,13 @@ class Book(models.Model):
         ('paper', 'Paper'),
     ]
 
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('done', 'Done'),
+        ('error', 'Error'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=500, null=False, blank=False)
     author = models.CharField(max_length=500, blank=True, null=True)
@@ -76,8 +83,12 @@ class Book(models.Model):
     # Nouvelle relation Many-to-Many pour les classes
     allowed_classes = models.ManyToManyField('Class', blank=True, related_name='accessible_books')
 
-    # ✅ Nouveau champ booléen
-    already_process = models.BooleanField(default=False)
+    # ✅ Nouveau champ status
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
 
 
     class Meta:
@@ -97,7 +108,7 @@ class Book(models.Model):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
-            
+
         if self.pk:
             try:
                 old = Book.objects.get(pk=self.pk)
