@@ -28,7 +28,11 @@ SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ["bibliotech.cd", "dev-api.bibliotech.cd", "dev-admin.bibliotech.cd"]
+ALLOWED_HOSTS = []
+ALLOWED_HOSTS_STRING = os.environ.get("ALLOWED_HOSTS", "localhost")
+ALLOWED_HOSTS_STRING_EXPLODE = str(ALLOWED_HOSTS_STRING).split(",")
+for cao in ALLOWED_HOSTS_STRING_EXPLODE :
+    ALLOWED_HOSTS.append(f'{cao}')
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -86,8 +90,8 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'bibliotech_db'),
+        'ENGINE': os.environ.get('DB_ENGINE','django.db.backends.sqlite3'),
+        'NAME': os.environ.get('DB_NAME', BASE_DIR / 'db.sqlite3'),
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
         'HOST': os.environ.get('DB_HOST', 'prod_postgres'),
@@ -118,9 +122,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en-us')
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.environ.get('TIME_ZONE', 'UTC')
 
 USE_I18N = True
 
@@ -156,7 +160,12 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-CSRF_TRUSTED_ORIGINS = ["https://dev-bibliotech.cd", "https://dev-api.bibliotech.cd", "https://dev-admin.bibliotech.cd"]
+CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS_STRING = os.environ.get("CSRF_TRUSTED_ORIGINS", "localhost")
+CSRF_TRUSTED_ORIGINS_STRING_EXPLODE = str(CSRF_TRUSTED_ORIGINS_STRING).split(",")
+for cao in CSRF_TRUSTED_ORIGINS_STRING_EXPLODE :
+    CSRF_TRUSTED_ORIGINS.append(f'https://{cao}')
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Django REST Framework config
@@ -174,12 +183,12 @@ REST_FRAMEWORK = {
 
 # CORS config (si tu as un frontend séparé, ex. React/Next.js)
 #Mes changements
-CORS_ALLOWED_ORIGINS = [
-    "https://dev-bibliotech.cd",
-    "http://localhost:3000",
-    "https://dev-api.bibliotech.cd",
-    "https://dev-admin.bibliotech.cd"
-]
+CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS_STRING = os.environ.get("CORS_ALLOWED_ORIGINS", "localhost")
+CORS_ALLOWED_ORIGINS_STRING_EXPLODE = str(CORS_ALLOWED_ORIGINS_STRING).split(",")
+for cao in CORS_ALLOWED_ORIGINS_STRING_EXPLODE :
+    CORS_ALLOWED_ORIGINS.append(f'https://{cao}')
+
 
 
 SIMPLE_JWT = {
