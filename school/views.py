@@ -86,7 +86,7 @@ class BookPageByBookAndOrderAPIView(APIView):
         file_path = book_dir / file_name
 
         if not file_path.exists():
-            return Response({"detail": "Page non trouvée."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Page non trouvée.", "file_path": file_path}, status=status.HTTP_404_NOT_FOUND)
 
         # Lire le contenu du fichier
         try:
