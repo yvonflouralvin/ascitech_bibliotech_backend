@@ -27,14 +27,42 @@ class ClassAdmin(admin.ModelAdmin):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ('title', 'description', 'already_processed_status')
-    search_fields = ('title', 'description')
-    readonly_fields = ('already_process',)  # Empêche la modification directe dans le formulaire
+    list_display = (
+        'title',
+        'already_processed_status',
+    )
 
-    # Fonction pour afficher le status en texte
+    search_fields = ('title', 'description')
+
+    # ✅ Champs en lecture seule
+    readonly_fields = (
+        'slug',
+        'page',
+        'already_process',
+        'processing_error',
+        'created_at',
+        'updated_at',
+    )
+
+    # Organisation du formulaire (optionnel mais recommandé)
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('title', 'author', 'description', 'book_format', 'book_file')
+        }),
+        ('Publication', {
+            'fields': ('publish_state', 'publication_date')
+        }),
+        ('Statut de traitement', {
+            'fields': ('already_process', 'processing_error')
+        }),
+        ('Métadonnées (auto)', {
+            'fields': ('slug', 'page', 'created_at', 'updated_at')
+        }),
+    )
+
     def already_processed_status(self, obj):
         return "Traité ✅" if obj.already_process else "Non traité ❌"
-    
+
     already_processed_status.short_description = "Statut"
 
 # --- Admin pour Student ---
