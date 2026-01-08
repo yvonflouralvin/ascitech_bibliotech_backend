@@ -77,6 +77,17 @@ class Book(models.Model):
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old = Book.objects.get(pk=self.pk)
+                if old.book_file and old.book_file != self.book_file:
+                    if os.path.isfile(old.book_file.path):
+                        os.remove(old.book_file.path)
+            except Book.DoesNotExist:
+                pass
+
+        super().save(*args, **kwargs)
 
 class BookPage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
