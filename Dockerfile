@@ -7,10 +7,12 @@ ENV PYTHONUNBUFFERED=1
 RUN apk add --no-cache gcc musl-dev libffi-dev bash curl make
 
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt 
 
 # Ne pas copier le code pour garder le volume Dokploy
 COPY . .
+
+RUN python manage.py migrate
 
 EXPOSE 8000
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
