@@ -86,6 +86,7 @@ class BookPageByBookAndOrderAPIView(APIView):
         file_path = book_dir / file_name
 
         if not file_path.exists():
+            print({"detail": "Page non trouvée.", "file_path": file_path})
             return Response({"detail": "Page non trouvée.", "file_path": file_path}, status=status.HTTP_404_NOT_FOUND)
 
         # Lire le contenu du fichier
@@ -93,6 +94,7 @@ class BookPageByBookAndOrderAPIView(APIView):
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
+            print(f"Erreur lecture fichier: {str(e)}")
             return Response({"detail": f"Erreur lecture fichier: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"id": f'${book_id}{order}', "title":book.title, "book": book_id,  "order": order, "content": content})
