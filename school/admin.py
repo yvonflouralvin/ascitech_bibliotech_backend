@@ -28,7 +28,8 @@ class ClassAdmin(admin.ModelAdmin):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ('title', 'status_colored')
+     # ✅ Colonnes affichées dans la liste
+    list_display = ('title', 'status_colored', 'display_allowed_classes')
     search_fields = ('title', 'description')
 
     readonly_fields = (
@@ -42,7 +43,7 @@ class BookAdmin(admin.ModelAdmin):
 
      # allowed_classes reste modifiable
     filter_horizontal = ('allowed_classes',)  # pratique pour ManyToManyField
-    
+
     fieldsets = (
         ('Informations générales', {
             'fields': ('title', 'author', 'description', 'book_format', 'book_file')
