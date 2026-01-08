@@ -26,6 +26,8 @@ COPY . .
 # --- Port ---
 EXPOSE 8000
 
+RUN  python manage.py migrate
+
 # --- Start command ---
 CMD sh -c "python manage.py collectstatic --noinput && \
            gunicorn backend.wsgi:application \
