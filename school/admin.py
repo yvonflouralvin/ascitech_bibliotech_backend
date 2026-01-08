@@ -54,6 +54,9 @@ class BookAdmin(admin.ModelAdmin):
         ('Statut de traitement', {
             'fields': ('status', 'processing_error')
         }),
+        ('Classes autorisées', {
+            'fields': ('allowed_classes',)  # ✅ Ici l'admin peut ajouter ou retirer des classes
+        }),
         ('Métadonnées (auto)', {
             'fields': ('slug', 'page', 'created_at', 'updated_at')
         }),
@@ -78,7 +81,7 @@ class BookAdmin(admin.ModelAdmin):
     # ✅ Afficher les classes associées dans la liste
     def display_allowed_classes(self, obj):
         return ", ".join([c.name for c in obj.allowed_classes.all()])
-        
+
     display_allowed_classes.short_description = "Classes autorisées"
 
 
