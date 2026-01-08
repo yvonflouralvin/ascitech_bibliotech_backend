@@ -160,8 +160,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000"
+]
 CSRF_TRUSTED_ORIGINS_STRING = os.environ.get("CSRF_TRUSTED_ORIGINS", "localhost")
+
+# if CSRF_TRUSTED_ORIGINS_STRING == 'localhost' :
+#     MIDDLEWARE.remove("django.middleware.csrf.CsrfViewMiddleware")
+#     CSRF_TRUSTED_ORIGINS.append("https://localhost:8000")
+# else :
 CSRF_TRUSTED_ORIGINS_STRING_EXPLODE = str(CSRF_TRUSTED_ORIGINS_STRING).split(",")
 for cao in CSRF_TRUSTED_ORIGINS_STRING_EXPLODE :
     CSRF_TRUSTED_ORIGINS.append(f'https://{cao}')

@@ -46,6 +46,13 @@ class Book(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # ✅ Nouveau champ fichier
+    book_file = models.FileField(
+        upload_to='books/files/',
+        blank=True,
+        null=True
+    )
+
     # Nouvelle relation Many-to-Many pour les classes
     allowed_classes = models.ManyToManyField('Class', blank=True, related_name='accessible_books')
 
