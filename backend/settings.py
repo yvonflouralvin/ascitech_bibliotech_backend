@@ -26,14 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-debug_env = os.environ.get('DEBUG', "1")
-DEBUG = True if debug_env == "1" else False
 
-ALLOWED_HOSTS = []
-ALLOWED_HOSTS_STRING = os.environ.get("ALLOWED_HOSTS", "localhost")
-ALLOWED_HOSTS_STRING_EXPLODE = str(ALLOWED_HOSTS_STRING).split(",")
-for cao in ALLOWED_HOSTS_STRING_EXPLODE :
-    ALLOWED_HOSTS.append(f'{cao}')
+DEBUG = os.environ.get('DEBUG', '1') == '1'
+
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] 
+CORS_ALLOWED_ORIGINS = [f"https://{h}" for h in os.environ.get('CORS_ALLOWED_ORIGINS', 'localhost,127.0.0.1').split(',')]
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -144,21 +142,19 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
-if DEBUG:
+# -----------------------------
+# Static files
+# -----------------------------
+STATIC_URL = '/static/'
 
-    # Dossier où sont tes fichiers static "bruts" pour dev
+if DEBUG:
+    # Dev-friendly: sert directement le dossier static
     STATICFILES_DIRS = [BASE_DIR / "static"]
-    # Pas de STATIC_ROOT ni de Whitenoise en dev
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
+    STATIC_ROOT = BASE_DIR / "staticfiles"  # juste au cas où collectstatic est lancé
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 else:
-    # Production
     STATIC_ROOT = BASE_DIR / "staticfiles"
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True 
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -168,19 +164,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8000"
-]
-CSRF_TRUSTED_ORIGINS_STRING = os.environ.get("CSRF_TRUSTED_ORIGINS", "localhost")
-
-# if CSRF_TRUSTED_ORIGINS_STRING == 'localhost' :
-#     MIDDLEWARE.remove("django.middleware.csrf.CsrfViewMiddleware")
-#     CSRF_TRUSTED_ORIGINS.append("https://localhost:8000")
-# else :
-CSRF_TRUSTED_ORIGINS_STRING_EXPLODE = str(CSRF_TRUSTED_ORIGINS_STRING).split(",")
-for cao in CSRF_TRUSTED_ORIGINS_STRING_EXPLODE :
-    CSRF_TRUSTED_ORIGINS.append(f'https://{cao}')
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
