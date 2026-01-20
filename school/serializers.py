@@ -5,9 +5,7 @@ from .models import Book, BookPage
 from rest_framework import serializers
 from .models import Book
 
-
 class BookSerializer(serializers.ModelSerializer):
-    # 🔹 Retourne le chemin ou l'URL du fichier s'il existe
     book_file_path = serializers.SerializerMethodField()
 
     class Meta:
@@ -41,18 +39,14 @@ class BookSerializer(serializers.ModelSerializer):
 
     def get_book_file_path(self, obj):
         """
-        Retourne le chemin du fichier source si présent,
-        sinon None
+        Retourne une URL publique normalisée :
+        https://bibliotech.cd/public/books/nom_du_fichier
         """
-        if obj.book_file:
-            # 👉 chemin relatif sur le serveur
-            #return obj.book_file.name
+        if not obj.book_file:
+            return None
 
-            # 👉 OU URL complète (décommente si tu préfères)
-            request = self.context.get('request')
-            return request.build_absolute_uri(obj.book_file.url) if request else obj.book_file.url
-
-        return None
+        base_url = "https://bibliotech.cd/public/"
+        return f"{base_url}{obj.book_file.name}"
 
 
 class BookPageSerializer(serializers.ModelSerializer):
