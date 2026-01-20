@@ -12,6 +12,8 @@ from pathlib import Path
 from uuid import UUID
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
+from itsdangerous import URLSafeSerializer, BadSignature
+from django.conf import settings
 
 BASE_DIR = Path("books_content")  # dossier racine des livres
 
