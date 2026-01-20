@@ -13,7 +13,7 @@ from uuid import UUID
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 
-
+BASE_DIR = Path("books_content")  # dossier racine des livres
 
 class BookListAPIView(generics.ListAPIView):
     """GET /api/books/"""
@@ -68,7 +68,6 @@ class BookPagesByBookAPIView(generics.ListAPIView):
     def get_queryset(self):
         book_id = self.kwargs['book_id']
         return BookPage.objects.filter(book_id=book_id).order_by('order')
-BASE_DIR = Path("books_content")  # dossier racine des livres
 
 class BookPageByBookAndOrderAPIView(APIView):
 
@@ -82,12 +81,23 @@ class BookPageByBookAndOrderAPIView(APIView):
         book = Book.objects.filter(id=book_id).first()
         # Construire le chemin vers le fichier
         book_dir = BASE_DIR / str(book_uuid)
+
         file_name = f"content_{order:02}.txt"
         file_path = book_dir / file_name
-
+        
         if not file_path.exists():
             print({"detail": "Page non trouvée.", "file_path": file_path})
-            return Response({"detail": "Page non trouvée.", "file_path": file_path}, status=status.HTTP_404_NOT_FOUND)
+            file_name = f"content_{order:03}.txt"
+            file_path = book_dir / file_name
+            if not file_path.exists():
+                print({"detail": "Page non trouvée.", "file_path": file_path})
+                file_name = f"content_{order:04}.txt"
+                file_path = book_dir / file_name
+                if not file_path.exists():
+                    print({"detail": "Page non trouvée.", "file_path": file_path})
+                    file_name = f"content_{order:05}.txt"
+                    file_path = book_dir / file_name
+                    return Response({"detail": "Page non trouvée."}, status=status.HTTP_404_NOT_FOUND)
 
         # Lire le contenu du fichier
         try:
