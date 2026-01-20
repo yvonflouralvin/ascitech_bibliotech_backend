@@ -40,12 +40,12 @@ class BookSerializer(serializers.ModelSerializer):
     def get_book_file_path(self, obj):
         """
         Retourne une URL publique normalisée :
-        https://bibliotech.cd/public/books/nom_du_fichier
+        https://bibliotech.cd/books/nom_du_fichier
         """
         if not obj.book_file:
             return None
 
-        base_url = "https://bibliotech.cd/public/"
+        base_url = "https://bibliotech.cd/"
         return f"{base_url}{obj.book_file.name}"
 
 
