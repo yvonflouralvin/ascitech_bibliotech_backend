@@ -17,6 +17,7 @@ COPY . .
 
 # Création dossier staticfiles
 RUN mkdir -p /app/staticfiles
+RUN python manage.py migrate
 
 EXPOSE 8000
 
