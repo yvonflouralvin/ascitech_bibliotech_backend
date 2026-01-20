@@ -29,9 +29,14 @@ SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a
 
 DEBUG = os.environ.get('DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] 
-CORS_ALLOWED_ORIGINS = [f"https://{h}" for h in os.environ.get('CORS_ALLOWED_ORIGINS', 'localhost,127.0.0.1').split(',')]
+# ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ["*"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://*",
+    "https://*",
+]
+# CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] 
+# CORS_ALLOWED_ORIGINS = [f"https://{h}" for h in os.environ.get('CORS_ALLOWED_ORIGINS', 'localhost,127.0.0.1').split(',')]
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -180,15 +185,16 @@ REST_FRAMEWORK = {
     ),
 }
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 # CORS config (si tu as un frontend séparé, ex. React/Next.js)
 #Mes changements
-CORS_ALLOWED_ORIGINS = []
-CORS_ALLOWED_ORIGINS_STRING = os.environ.get("CORS_ALLOWED_ORIGINS", "localhost")
-CORS_ALLOWED_ORIGINS_STRING_EXPLODE = str(CORS_ALLOWED_ORIGINS_STRING).split(",")
-for cao in CORS_ALLOWED_ORIGINS_STRING_EXPLODE :
-    CORS_ALLOWED_ORIGINS.append(f'https://{cao}')
-
-
+# CORS_ALLOWED_ORIGINS = []
+# CORS_ALLOWED_ORIGINS_STRING = os.environ.get("CORS_ALLOWED_ORIGINS", "localhost")
+# CORS_ALLOWED_ORIGINS_STRING_EXPLODE = str(CORS_ALLOWED_ORIGINS_STRING).split(",")
+# for cao in CORS_ALLOWED_ORIGINS_STRING_EXPLODE :
+#     CORS_ALLOWED_ORIGINS.append(f'https://{cao}')
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
