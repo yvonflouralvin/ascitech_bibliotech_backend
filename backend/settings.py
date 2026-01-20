@@ -35,6 +35,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://*",
     "https://*",
 ]
+
+ALLOW_ALL_ORIGINS=True
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 # CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] 
 # CORS_ALLOWED_ORIGINS = [f"https://{h}" for h in os.environ.get('CORS_ALLOWED_ORIGINS', 'localhost,127.0.0.1').split(',')]
 
@@ -185,8 +189,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
 
 # CORS config (si tu as un frontend séparé, ex. React/Next.js)
 #Mes changements
