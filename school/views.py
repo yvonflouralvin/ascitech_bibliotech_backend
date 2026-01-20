@@ -108,3 +108,41 @@ class BookPageByBookAndOrderAPIView(APIView):
             return Response({"detail": f"Erreur lecture fichier: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"id": f'${book_id}{order}', "title":book.title, "book": book_id,  "order": order, "content": content})
+
+
+serializer = URLSafeSerializer(settings.SECRET_KEY, salt="book-download")
+class BookDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_id):
+        book = get_object_or_404(Book, id=book_id)
+
+        now = timezone.now()
+        min_validity = datetime.timedelta(minutes=3)
+
+        regenerate = (
+            not book.download_token or
+            not book.download_token_expires_at or
+            book.download_token_expires_at - now < min_validity
+        )
+
+        if regenerate:
+            expires_at = now + datetime.timedelta(minutes=5)
+            token = serializer.dumps({
+                "book": str(book.id),
+                "exp": int(expires_at.timestamp())
+            })
+
+            book.download_token = token
+            book.download_token_expires_at = expires_at
+            book.save(update_fields=["download_token", "download_token_expires_at"])
+
+        # 🔒 Vérification finale (sécurité)
+        if not book.book_file:
+            return Response({"error": "Fichier indisponible"}, status=404)
+
+        return FileResponse(
+            open(book.book_file.path, "rb"),
+            content_type="application/epub+zip",
+            as_attachment=False
+        )

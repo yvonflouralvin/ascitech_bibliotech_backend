@@ -37,3 +37,4 @@ pytest-django>=4.8.0
 black>=24.3.0
 isort>=5.13.0
 whitenoise
+itsdangerous

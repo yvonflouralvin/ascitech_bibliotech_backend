@@ -8,4 +8,5 @@ urlpatterns = [
     # 📘 Pages d’un livre spécifique
     path('books/<uuid:book_id>/pages/', BookPagesByBookAPIView.as_view(), name='book-pages-by-book'),
     path('books/<uuid:book_id>/page/<int:order>/', BookPageByBookAndOrderAPIView.as_view(), name='book-page-by-book-and-order'),
+    path("books/<uuid:book_id>/download/", BookDownloadView.as_view(), name="book-download" ),
 ]

@@ -90,6 +90,10 @@ class Book(models.Model):
         default='pending'
     )
 
+    # Champs pour le lien temporaire
+    download_token = models.CharField(max_length=255, blank=True, null=True)
+    download_token_expires_at = models.DateTimeField(blank=True, null=True)
+
 
     class Meta:
         verbose_name = 'Book'
