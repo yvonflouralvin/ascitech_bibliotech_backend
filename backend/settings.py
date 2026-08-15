@@ -19,16 +19,70 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+def env_list(name, default, aliases=()):
+    """Lit une liste separee par des virgules depuis l'environnement.
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#w(+9zlds^$l%@jg^*x+!(i1ogz%@c3x*a_k9&iu3bv$4!0p9a'
+    `aliases` permet de rester compatible avec les noms deja configures sur la
+    plateforme de deploiement (Dokploy definit `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`
+    et `CSRF_TRUSTED_ORIGINS` sans prefixe) : sans cela, la configuration de
+    l'operateur serait silencieusement ignoree au profit des valeurs par defaut.
+    """
+    for key in (name, *aliases):
+        raw = os.environ.get(key)
+        if raw:
+            return [item.strip() for item in raw.split(",") if item.strip()]
+    return list(default)
+
+
+def with_scheme(origins, default_scheme="https"):
+    """Prefixe d'un schema les origines qui n'en ont pas.
+
+    `CSRF_TRUSTED_ORIGINS` et `CORS_ALLOWED_ORIGINS` exigent un schema
+    (`https://exemple.cd`). Les variables d'environnement en place contiennent
+    des noms d'hote nus, qui provoqueraient une erreur de configuration au
+    demarrage : on les normalise plutot que d'imposer une reecriture cote infra.
+    """
+    normalized = []
+    for origin in origins:
+        if "://" in origin:
+            normalized.append(origin)
+        else:
+            normalized.append(f"{default_scheme}://{origin}")
+    return normalized
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "True") == "True"
+# Par defaut False : un deploiement qui oublie la variable reste sur la config sure.
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["bibliotech.cd", "dev-api.bibliotech.cd", "dev-admin.bibliotech.cd"]
+# SECURITY WARNING: keep the secret key used in production secret!
+# En production la variable DJANGO_SECRET_KEY est obligatoire ; en dev une cle
+# jetable est generee au demarrage pour ne pas bloquer le developpeur.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY est obligatoire lorsque DEBUG=False. "
+            "Generez une cle avec la commande : "
+            "python -c 'from django.core.management.utils import get_random_secret_key; "
+            "print(get_random_secret_key())'"
+        )
+    from django.core.management.utils import get_random_secret_key
+
+    SECRET_KEY = get_random_secret_key()
+
+DEFAULT_ALLOWED_HOSTS = [
+    "bibliotech.cd",
+    "admin.bibliotech.cd",
+    "api.bibliotech.cd",
+    "dev.bibliotech.cd",
+    "dev-api.bibliotech.cd",
+    "dev-admin.bibliotech.cd",
+]
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS, aliases=("ALLOWED_HOSTS",))
+if DEBUG:
+    # Confort de developpement : l'API reste joignable en local sans configuration.
+    ALLOWED_HOSTS += ["localhost", "127.0.0.1", "[::1]", "testserver"]
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -43,6 +97,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    # Necessaire pour que ROTATE_REFRESH_TOKENS / BLACKLIST_AFTER_ROTATION
+    # et la deconnexion revoquent reellement les refresh tokens.
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'corsheaders',
     'users',
@@ -50,15 +107,17 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # CorsMiddleware doit venir avant CommonMiddleware pour que les en-tetes CORS
+    # soient poses meme sur les reponses generees tot (redirections notamment).
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # ← JUSTE ICI
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "corsheaders.middleware.CorsMiddleware"
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -133,8 +192,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 if DEBUG:
-    # Dossier où sont tes fichiers static "bruts" pour dev
-    STATICFILES_DIRS = [BASE_DIR / "static"]
+    # Dossier des fichiers statiques "bruts" pour le dev (ignore s'il n'existe pas,
+    # sinon Django remonte un avertissement staticfiles.W004 au demarrage).
+    STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").is_dir() else []
     # Pas de STATIC_ROOT ni de Whitenoise en dev
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
@@ -147,8 +207,31 @@ else:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
+    # HSTS : desactive par defaut car un navigateur memorise l'en-tete pendant
+    # toute sa duree et refusera ensuite le HTTP sur le domaine — une valeur
+    # trop longue posee trop tot est difficile a annuler. Montee progressive
+    # recommandee : 3600, puis 86400, puis 31536000 une fois le HTTPS eprouve.
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+        os.environ.get("DJANGO_HSTS_INCLUDE_SUBDOMAINS", "False") == "True"
+    )
+    SECURE_HSTS_PRELOAD = os.environ.get("DJANGO_HSTS_PRELOAD", "False") == "True"
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Racine des pages de livres : un dossier par livre (<uuid>/content_01.txt, ...),
+# chaque fichier contenant une image de page encodee en base64.
+# Chemin absolu base sur BASE_DIR pour ne pas dependre du repertoire courant.
+BOOKS_CONTENT_ROOT = Path(
+    os.environ.get("BOOKS_CONTENT_ROOT", BASE_DIR / "books_content")
+)
+
+# Cache disque des vignettes de couverture. Place hors de BOOKS_CONTENT_ROOT,
+# qui peut etre monte en lecture seule.
+BOOKS_THUMBNAIL_ROOT = Path(
+    os.environ.get("BOOKS_THUMBNAIL_ROOT", BASE_DIR / ".thumbnails")
+)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -156,7 +239,20 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-CSRF_TRUSTED_ORIGINS = ["https://dev-bibliotech.cd", "https://dev-api.bibliotech.cd", "https://dev-admin.bibliotech.cd"]
+CSRF_TRUSTED_ORIGINS = with_scheme(
+    env_list(
+        "DJANGO_CSRF_TRUSTED_ORIGINS",
+        [
+            "https://bibliotech.cd",
+            "https://admin.bibliotech.cd",
+            "https://api.bibliotech.cd",
+            "https://dev.bibliotech.cd",
+            "https://dev-api.bibliotech.cd",
+            "https://dev-admin.bibliotech.cd",
+        ],
+        aliases=("CSRF_TRUSTED_ORIGINS",),
+    )
+)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Django REST Framework config
@@ -172,14 +268,22 @@ REST_FRAMEWORK = {
     ),
 }
 
-# CORS config (si tu as un frontend séparé, ex. React/Next.js)
-#Mes changements
-CORS_ALLOWED_ORIGINS = [
-    "https://dev-bibliotech.cd",
-    "http://localhost:3000",
-    "https://dev-api.bibliotech.cd",
-    "https://dev-admin.bibliotech.cd"
-]
+# CORS config (frontend Next.js servi sur un autre domaine)
+CORS_ALLOWED_ORIGINS = with_scheme(
+    env_list(
+        "DJANGO_CORS_ALLOWED_ORIGINS",
+        [
+            "https://bibliotech.cd",
+            "https://admin.bibliotech.cd",
+            "https://api.bibliotech.cd",
+            "https://dev.bibliotech.cd",
+            "https://dev-api.bibliotech.cd",
+            "https://dev-admin.bibliotech.cd",
+            "http://localhost:3000",
+        ],
+        aliases=("CORS_ALLOWED_ORIGINS",),
+    )
+)
 
 
 SIMPLE_JWT = {

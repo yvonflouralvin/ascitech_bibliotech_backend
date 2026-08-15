@@ -20,6 +20,12 @@ venv/
 /staticfiles/
 media/
 
+# Cache des vignettes de couverture (regenere a la demande)
+/.thumbnails/
+
+# Base SQLite locale
+*.sqlite3
+
 # OS files
 .DS_Store
 Thumbs.db
