@@ -240,6 +240,13 @@ BOOKS_THUMBNAIL_ROOT = Path(
     os.environ.get("BOOKS_THUMBNAIL_ROOT", BASE_DIR / ".thumbnails")
 )
 
+# Base publique des fichiers de livres (EPUB notamment). Les fichiers sont
+# servis par le frontend depuis son dossier `public/books/`, l'URL pointe donc
+# vers le domaine du site et non vers celui de l'API.
+# Configurable pour que l'environnement de developpement ne renvoie pas des
+# liens vers la production.
+BOOKS_PUBLIC_BASE_URL = os.environ.get("BOOKS_PUBLIC_BASE_URL", "https://bibliotech.cd/")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

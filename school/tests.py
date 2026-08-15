@@ -316,6 +316,45 @@ class BookAccessControlTests(TestCase):
     def test_anonymous_access_is_denied(self):
         self.assertEqual(self.client.get(reverse("book-list")).status_code, 401)
 
+    def test_book_file_path_is_null_without_file(self):
+        self.auth(self.student_user)
+        book = self.client.get(reverse("book-list")).json()[0]
+        self.assertIsNone(book["book_file_path"])
+
+    @override_settings(BOOKS_PUBLIC_BASE_URL="https://exemple.cd/")
+    def test_book_file_path_uses_public_base_url(self):
+        """Le lecteur EPUB charge le fichier via cette URL."""
+        epub = make_book("Roman epub", slug="roman-epub", book_format="epub")
+        epub.book_file = "books/roman.epub"
+        epub.save()
+        epub.allowed_classes.add(self.classe_a)
+
+        self.auth(self.student_user)
+        detail = self.client.get(reverse("book-detail", kwargs={"id": epub.id})).json()
+        self.assertEqual(detail["book_file_path"], "https://exemple.cd/books/roman.epub")
+        self.assertEqual(detail["book_format"], "epub")
+
+    @override_settings(BOOKS_PUBLIC_BASE_URL="https://exemple.cd")
+    def test_book_file_path_tolerates_base_url_without_slash(self):
+        epub = make_book("Autre epub", slug="autre-epub", book_format="epub")
+        epub.book_file = "books/autre.epub"
+        epub.save()
+        epub.allowed_classes.add(self.classe_a)
+
+        self.auth(self.student_user)
+        detail = self.client.get(reverse("book-detail", kwargs={"id": epub.id})).json()
+        self.assertEqual(detail["book_file_path"], "https://exemple.cd/books/autre.epub")
+
+    def test_epub_without_page_files_reports_no_cover(self):
+        """Un EPUB n'a pas d'images de pages : la couverture doit etre signalee absente."""
+        epub = make_book("Epub sans pages", slug="epub-sans-pages", book_format="epub")
+        epub.allowed_classes.add(self.classe_a)
+
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.auth(self.student_user)
+            body = self.client.get(reverse("book-cover", kwargs={"book_id": epub.id})).json()
+            self.assertFalse(body["available"])
+
     def test_books_still_processing_are_hidden(self):
         """Un livre non traite n'a pas de pages exploitables : il reste masque."""
         for state in (Book.STATUS_PENDING, Book.STATUS_PROCESSING, Book.STATUS_ERROR):
