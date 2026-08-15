@@ -98,6 +98,19 @@ class Book(models.Model):
         default='pending'
     )
 
+    # Page utilisee comme couverture dans le catalogue.
+    # 0 = aucune page exploitable : le client affiche une couverture generee
+    # (degrade, titre, auteur). C'est le cas des EPUB, dont la conversion en
+    # images commence par des pages blanches.
+    cover_page = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Page de couverture",
+        help_text=(
+            "Numero de la page a utiliser comme couverture. "
+            "0 pour afficher une couverture generee automatiquement."
+        ),
+    )
+
 
     class Meta:
         verbose_name = 'Book'
@@ -107,6 +120,11 @@ class Book(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
+        # Un EPUB n'a pas de page de garde exploitable : sa couverture est
+        # generee par defaut. La valeur reste modifiable dans l'administration.
+        if self._state.adding and self.book_format == 'epub' and self.cover_page == 1:
+            self.cover_page = 0
+
         # ✅ Générer le slug automatiquement si absent
         if not self.slug and self.title:
             base_slug = slugify(self.title)

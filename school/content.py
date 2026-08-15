@@ -114,102 +114,35 @@ def resolve_page(book_id, order: int) -> Path | None:
     return page_files(book_id).get(order)
 
 
-#: Nombre de pages examinees au maximum pour trouver une couverture lisible.
-COVER_SCAN_PAGES = 6
-
-#: Proportion minimale de pixels non blancs pour qu'une page soit consideree
-#: comme porteuse de contenu. Mesure sur le fonds reel : les pages blanches des
-#: EPUB convertis plafonnent a 0,35 % tandis qu'une vraie couverture depasse 5 %.
-MIN_INK_RATIO = 0.01
-
-#: Seuil de luminance en dessous duquel un pixel compte comme "encre".
-INK_LUMINANCE = 240
+#: Valeur de `Book.cover_page` signifiant « aucune page exploitable ».
+GENERATED_COVER = 0
 
 
-def ink_ratio(path: Path) -> float | None:
-    """Proportion de pixels non blancs d'une page.
+def resolve_cover(book_id, cover_page: int = 1) -> Path | None:
+    """Fichier a utiliser comme couverture, selon le reglage du livre.
 
-    Renvoie None si l'image n'est pas analysable (Pillow absent, fichier
-    illisible) : l'appelant considere alors la page comme utilisable, ce qui
-    preserve le comportement anterieur.
+    `cover_page` provient du champ `Book.cover_page`, modifiable dans
+    l'administration :
+
+    - `0` : aucune page ne convient. On renvoie None et le client dessine une
+      couverture generee. C'est la valeur par defaut des EPUB, dont la
+      conversion en images commence par des pages blanches.
+    - `n` : la page `n` du livre, avec repli sur la premiere page disponible si
+      elle n'existe pas (numerotation inhabituelle, page manquante).
     """
-    try:
-        from PIL import Image
-    except ImportError:
+    if cover_page is None or cover_page <= GENERATED_COVER:
         return None
 
-    try:
-        import io
+    direct = resolve_page(book_id, cover_page)
+    if direct is not None:
+        return direct
 
-        with Image.open(io.BytesIO(_decode_source(path))) as image:
-            # `draft` permet a la JPEG un decodage direct en basse resolution :
-            # l'analyse ne coute alors qu'une fraction du decodage complet.
-            image.draft("L", (64, 64))
-            sample = image.convert("L").resize((64, 64))
-            pixels = list(sample.getdata())
-    except Exception:
-        return None
-
-    if not pixels:
-        return None
-    return sum(1 for value in pixels if value < INK_LUMINANCE) / len(pixels)
-
-
-def _cover_cache_file(book_id) -> Path | None:
-    directory = book_directory(book_id)
-    if directory is None:
-        return None
-    return _thumbnail_root() / "covers" / f"{directory.name}.txt"
-
-
-def resolve_cover(book_id) -> Path | None:
-    """Fichier de couverture : la premiere page reellement lisible du livre.
-
-    Deux ecueils sont couverts :
-
-    1. la numerotation ne commence pas forcement a 1 ;
-    2. la conversion d'un EPUB en images produit une ou deux pages de garde
-       **blanches** avant le contenu. Elles existent sur le disque, mais les
-       servir revient a afficher un rectangle vide. On les ignore donc au profit
-       de la premiere page porteuse de contenu.
-
-    Si aucune des premieres pages n'a de contenu, on renvoie None : le client
-    dessine alors une couverture generee, plus informative qu'une page blanche.
-    """
+    # Le reglage pointe une page absente : plutot que de ne rien afficher, on
+    # retombe sur la premiere page presente.
     pages = page_files(book_id)
     if not pages:
         return None
-
-    ordered = sorted(pages)
-
-    # Le choix est memorise : l'analyse ne se refait pas a chaque affichage.
-    cache_file = _cover_cache_file(book_id)
-    if cache_file is not None and cache_file.is_file():
-        try:
-            cached = int(cache_file.read_text(encoding="utf-8").strip())
-            if cached in pages:
-                return pages[cached]
-            if cached == -1:
-                return None
-        except (OSError, ValueError):
-            pass
-
-    chosen: int | None = None
-    for number in ordered[:COVER_SCAN_PAGES]:
-        ratio = ink_ratio(pages[number])
-        # ratio inconnu : on garde la page plutot que de risquer un faux rejet.
-        if ratio is None or ratio >= MIN_INK_RATIO:
-            chosen = number
-            break
-
-    if cache_file is not None:
-        try:
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-            cache_file.write_text(str(chosen if chosen is not None else -1), encoding="utf-8")
-        except OSError:
-            pass
-
-    return pages[chosen] if chosen is not None else None
+    return pages[min(pages)]
 
 
 def read_page_payload(path: Path) -> str:
