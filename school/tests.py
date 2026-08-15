@@ -86,6 +86,112 @@ class ContentResolutionTests(TestCase):
         with override_settings(BOOKS_CONTENT_ROOT=self.root):
             self.assertIsNone(content.resolve_cover(uuid.uuid4()))
 
+    def _write_image(self, book_id, name, ink_rows=0):
+        """Ecrit une page blanche, noircie sur `ink_rows` lignes."""
+        from PIL import Image
+
+        import io
+
+        image = Image.new("RGB", (200, 280), (255, 255, 255))
+        if ink_rows:
+            for y in range(ink_rows):
+                for x in range(200):
+                    image.putpixel((x, y), (10, 10, 10))
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=90)
+        directory = self.root / str(book_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / name).write_text(
+            base64.b64encode(buffer.getvalue()).decode(), encoding="utf-8"
+        )
+
+    def test_cover_skips_blank_leading_pages(self):
+        """Les EPUB convertis commencent par des pages blanches : il faut les ignorer.
+
+        Sans cela, la vignette affichee est un rectangle vide alors que le
+        livre a bien une page de garde plus loin.
+        """
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow n'est pas installe")
+
+        book_id = uuid.uuid4()
+        self._write_image(book_id, "content_01.txt", ink_rows=0)
+        self._write_image(book_id, "content_02.txt", ink_rows=0)
+        self._write_image(book_id, "content_03.txt", ink_rows=90)
+
+        with override_settings(
+            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
+        ):
+            cover = content.resolve_cover(book_id)
+            self.assertIsNotNone(cover)
+            self.assertEqual(cover.name, "content_03.txt")
+
+    def test_cover_keeps_a_first_page_that_has_content(self):
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow n'est pas installe")
+
+        book_id = uuid.uuid4()
+        self._write_image(book_id, "content_01.txt", ink_rows=140)
+        self._write_image(book_id, "content_02.txt", ink_rows=140)
+
+        with override_settings(
+            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
+        ):
+            self.assertEqual(content.resolve_cover(book_id).name, "content_01.txt")
+
+    def test_cover_is_none_when_every_scanned_page_is_blank(self):
+        """Mieux vaut une couverture generee qu'une page blanche."""
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow n'est pas installe")
+
+        book_id = uuid.uuid4()
+        for index in range(1, content.COVER_SCAN_PAGES + 1):
+            self._write_image(book_id, f"content_{index:02}.txt", ink_rows=0)
+
+        with override_settings(
+            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
+        ):
+            self.assertIsNone(content.resolve_cover(book_id))
+
+    def test_cover_choice_is_cached(self):
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow n'est pas installe")
+
+        book_id = uuid.uuid4()
+        self._write_image(book_id, "content_01.txt", ink_rows=0)
+        self._write_image(book_id, "content_02.txt", ink_rows=120)
+
+        thumbnails = self.root / ".thumbnails"
+        with override_settings(
+            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=thumbnails
+        ):
+            first = content.resolve_cover(book_id)
+            self.assertEqual((thumbnails / "covers" / f"{book_id}.txt").read_text(), "2")
+            self.assertEqual(content.resolve_cover(book_id), first)
+
+    def test_ink_ratio_distinguishes_blank_from_content(self):
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow n'est pas installe")
+
+        book_id = uuid.uuid4()
+        self._write_image(book_id, "content_01.txt", ink_rows=0)
+        self._write_image(book_id, "content_02.txt", ink_rows=140)
+
+        blank = content.ink_ratio(self.root / str(book_id) / "content_01.txt")
+        full = content.ink_ratio(self.root / str(book_id) / "content_02.txt")
+        self.assertLess(blank, content.MIN_INK_RATIO)
+        self.assertGreater(full, content.MIN_INK_RATIO)
+
     def test_binary_page_is_base64_encoded(self):
         book_id = uuid.uuid4()
         directory = self.root / str(book_id)
