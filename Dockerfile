@@ -1,25 +1,40 @@
+# --- Base image ---
 FROM python:3.12-slim
 
+# --- Env ---
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# System deps
-RUN apt-get update && apt-get install -y gcc libpq-dev curl && rm -rf /var/lib/apt/lists/*
+# --- Dépendances système ---
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
+# --- Working dir ---
 WORKDIR /app
 
-# Python deps
+# --- Requirements ---
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
 
-# App code
+# --- Code ---
 COPY . .
 
-# Création dossier staticfiles
+# Le dossier doit exister avant collectstatic.
 RUN mkdir -p /app/staticfiles
-RUN python manage.py migrate
 
+# --- Port ---
 EXPOSE 8000
 
-# Start
-CMD ["sh", "-c", "python manage.py collectstatic --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+# Les migrations sont appliquees au DEMARRAGE, pas au build : au moment du
+# build, les variables DB_* ne sont pas disponibles et `migrate` s'executait
+# donc sur une base SQLite jetable, sans jamais toucher PostgreSQL.
+# --- Start command ---
+CMD sh -c "python manage.py migrate --noinput && \
+           python manage.py collectstatic --noinput && \
+           gunicorn backend.wsgi:application \
+           --bind 0.0.0.0:8000 \
+           --workers 3"

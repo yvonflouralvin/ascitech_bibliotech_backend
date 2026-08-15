@@ -1,30 +1,29 @@
-from django.contrib import admin
-#from django.contrib.auth.models import User
-from django.contrib.auth import get_user_model
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Class, Student, Book
 from django import forms
-from django.db.models import Q
+from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.utils.html import format_html
 
-User = get_user_model()  # ✅ Récupère ton modèle user personnalisé
+from .models import Book, BookPage, Class, Student
 
-# --- Inline pour Student dans User ---
-class StudentInline(admin.StackedInline):
-    model = Student
-    can_delete = False
-    verbose_name_plural = 'Student Profile'
+User = get_user_model()
 
-# --- Custom User Admin pour gérer l'élève directement ---
-class UserAdmin(BaseUserAdmin):
-    inlines = (StudentInline,)
-    list_display = ('email', 'username', 'is_staff', 'is_active')
 
-# --- Admin pour Class ---
 @admin.register(Class)
 class ClassAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
+    list_display = ('name', 'description', 'student_count')
     search_fields = ('name',)
+
+    @admin.display(description="Eleves")
+    def student_count(self, obj):
+        return obj.students.count()
+
+
+@admin.register(BookPage)
+class BookPageAdmin(admin.ModelAdmin):
+    list_display = ('title', 'book', 'order')
+    list_filter = ('book',)
+    search_fields = ('title',)
+
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
@@ -85,41 +84,98 @@ class BookAdmin(admin.ModelAdmin):
     display_allowed_classes.short_description = "Classes autorisées"
 
 
-# --- Admin pour Student ---
 class StudentAdminForm(forms.ModelForm):
-    password = forms.CharField(label='Password', widget=forms.PasswordInput, required=True)
-    username = forms.CharField(required=True, help_text="Nom d'utilisateur du compte élève")
-    email = forms.EmailField(required=False)
+    """Creation d'un eleve et de son compte utilisateur en un seul formulaire.
+
+    A la creation, le mot de passe est obligatoire. En modification il reste
+    facultatif : le laisser vide conserve le mot de passe existant.
+    """
+
+    username = forms.CharField(
+        required=True,
+        help_text="Nom d'utilisateur du compte eleve.",
+    )
+    email = forms.EmailField(
+        required=True,
+        help_text="Sert d'identifiant de connexion.",
+    )
+    password = forms.CharField(
+        label='Mot de passe',
+        widget=forms.PasswordInput(render_value=False),
+        required=False,
+        help_text="Laisser vide pour conserver le mot de passe actuel.",
+    )
 
     class Meta:
         model = Student
-        fields = ['full_name', 'school_class', 'password', 'email']
+        fields = ['full_name', 'school_class']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        user = getattr(self.instance, 'user', None)
+        if user is not None and user.pk:
+            self.fields['username'].initial = user.username
+            self.fields['email'].initial = user.email
+        else:
+            # Creation : le mot de passe devient obligatoire.
+            self.fields['password'].required = True
+            self.fields['password'].help_text = "Mot de passe initial du compte eleve."
+
+    def _existing_user(self):
+        user = getattr(self.instance, 'user', None)
+        return user if user is not None and user.pk else None
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        taken = User.objects.filter(email__iexact=email)
+        current = self._existing_user()
+        if current is not None:
+            taken = taken.exclude(pk=current.pk)
+        if taken.exists():
+            raise forms.ValidationError("Cet email est deja utilise par un autre compte.")
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        taken = User.objects.filter(username__iexact=username)
+        current = self._existing_user()
+        if current is not None:
+            taken = taken.exclude(pk=current.pk)
+        if taken.exists():
+            raise forms.ValidationError("Ce nom d'utilisateur est deja pris.")
+        return username
 
     def save(self, commit=True):
-        
-        # ✅ On récupère les données du formulaire
-        username = self.cleaned_data.get('username')
-        email = self.cleaned_data.get('email')
+        username = self.cleaned_data['username']
+        email = self.cleaned_data['email']
         password = self.cleaned_data.get('password')
         full_name = self.cleaned_data.get('full_name')
-        
-        user = User.objects.filter(username=username)
-        if len(user) ==  0 :
-        # ✅ Crée l'utilisateur automatiquement
-            user = User.objects.create(username=username, email=email, password=password, full_name=full_name)
-        else:
-            user = user[0]
 
-        if self.cleaned_data['password']:
-            user.set_password(self.cleaned_data['password'])
+        user = self._existing_user()
+        if user is None:
+            # create_user hache le mot de passe ; ne jamais passer par
+            # User.objects.create() qui l'enregistrerait en clair.
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                full_name=full_name,
+            )
+        else:
+            user.username = username
+            user.email = email
+            user.full_name = full_name
+            if password:
+                user.set_password(password)
             user.save()
 
         student = super().save(commit=False)
         student.user = user
-
         if commit:
             student.save()
+            self.save_m2m()
         return student
+
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):

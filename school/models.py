@@ -44,11 +44,19 @@ class Book(models.Model):
         ('paper', 'Paper'),
     ]
 
+    # Constantes nommees : evitent les chaines en dur dans les vues et le
+    # pipeline de traitement. Simples attributs de classe, sans impact sur le
+    # schema ni sur les migrations.
+    STATUS_PENDING = 'pending'
+    STATUS_PROCESSING = 'processing'
+    STATUS_DONE = 'done'
+    STATUS_ERROR = 'error'
+
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('processing', 'Processing'),
-        ('done', 'Done'),
-        ('error', 'Error'),
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_DONE, 'Done'),
+        (STATUS_ERROR, 'Error'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
