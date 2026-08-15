@@ -149,7 +149,10 @@ class BookCoverAPIView(AccessibleBookMixin, APIView):
 
     def get(self, request, book_id):
         book = self.get_book_or_404(book_id)
-        path = content.resolve_cover(book_id)
+
+        # `cover_page` est reglable dans l'administration : 0 signifie qu'aucune
+        # page ne convient et que le client doit dessiner sa couverture generee.
+        path = content.resolve_cover(book_id, book.cover_page)
 
         if path is None:
             return Response(

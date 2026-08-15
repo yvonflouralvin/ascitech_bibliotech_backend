@@ -86,178 +86,31 @@ class ContentResolutionTests(TestCase):
         with override_settings(BOOKS_CONTENT_ROOT=self.root):
             self.assertIsNone(content.resolve_cover(uuid.uuid4()))
 
-    def _write_image(self, book_id, name, ink_rows=0):
-        """Ecrit une page blanche, noircie sur `ink_rows` lignes."""
-        from PIL import Image
-
-        import io
-
-        image = Image.new("RGB", (200, 280), (255, 255, 255))
-        if ink_rows:
-            for y in range(ink_rows):
-                for x in range(200):
-                    image.putpixel((x, y), (10, 10, 10))
-        buffer = io.BytesIO()
-        image.save(buffer, format="JPEG", quality=90)
-        directory = self.root / str(book_id)
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / name).write_text(
-            base64.b64encode(buffer.getvalue()).decode(), encoding="utf-8"
-        )
-
-    def test_cover_skips_blank_leading_pages(self):
-        """Les EPUB convertis commencent par des pages blanches : il faut les ignorer.
-
-        Sans cela, la vignette affichee est un rectangle vide alors que le
-        livre a bien une page de garde plus loin.
-        """
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow n'est pas installe")
-
+    def test_cover_page_zero_means_generated(self):
+        """0 = aucune page exploitable : le client dessine la couverture."""
         book_id = uuid.uuid4()
-        self._write_image(book_id, "content_01.txt", ink_rows=0)
-        self._write_image(book_id, "content_02.txt", ink_rows=0)
-        self._write_image(book_id, "content_03.txt", ink_rows=90)
-
-        with override_settings(
-            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
-        ):
-            cover = content.resolve_cover(book_id)
-            self.assertIsNotNone(cover)
-            self.assertEqual(cover.name, "content_03.txt")
-
-    def test_cover_keeps_a_first_page_that_has_content(self):
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow n'est pas installe")
-
-        book_id = uuid.uuid4()
-        self._write_image(book_id, "content_01.txt", ink_rows=140)
-        self._write_image(book_id, "content_02.txt", ink_rows=140)
-
-        with override_settings(
-            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
-        ):
-            self.assertEqual(content.resolve_cover(book_id).name, "content_01.txt")
-
-    def test_cover_is_none_when_every_scanned_page_is_blank(self):
-        """Mieux vaut une couverture generee qu'une page blanche."""
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow n'est pas installe")
-
-        book_id = uuid.uuid4()
-        for index in range(1, content.COVER_SCAN_PAGES + 1):
-            self._write_image(book_id, f"content_{index:02}.txt", ink_rows=0)
-
-        with override_settings(
-            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
-        ):
-            self.assertIsNone(content.resolve_cover(book_id))
-
-    def test_cover_choice_is_cached(self):
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow n'est pas installe")
-
-        book_id = uuid.uuid4()
-        self._write_image(book_id, "content_01.txt", ink_rows=0)
-        self._write_image(book_id, "content_02.txt", ink_rows=120)
-
-        thumbnails = self.root / ".thumbnails"
-        with override_settings(
-            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=thumbnails
-        ):
-            first = content.resolve_cover(book_id)
-            self.assertEqual((thumbnails / "covers" / f"{book_id}.txt").read_text(), "2")
-            self.assertEqual(content.resolve_cover(book_id), first)
-
-    def test_ink_ratio_distinguishes_blank_from_content(self):
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow n'est pas installe")
-
-        book_id = uuid.uuid4()
-        self._write_image(book_id, "content_01.txt", ink_rows=0)
-        self._write_image(book_id, "content_02.txt", ink_rows=140)
-
-        blank = content.ink_ratio(self.root / str(book_id) / "content_01.txt")
-        full = content.ink_ratio(self.root / str(book_id) / "content_02.txt")
-        self.assertLess(blank, content.MIN_INK_RATIO)
-        self.assertGreater(full, content.MIN_INK_RATIO)
-
-    def test_binary_page_is_base64_encoded(self):
-        book_id = uuid.uuid4()
-        directory = self.root / str(book_id)
-        directory.mkdir(parents=True)
-        (directory / "content_01.jpg").write_bytes(bytes.fromhex("ffd8ffe000104a464946"))
-
+        self.write(book_id, "content_01.txt")
         with override_settings(BOOKS_CONTENT_ROOT=self.root):
-            path = content.resolve_page(book_id, 1)
-            self.assertIsNotNone(path)
-            payload = content.read_page_payload(path)
-            self.assertEqual(base64.b64decode(payload)[:2], b"\xff\xd8")
+            self.assertIsNone(content.resolve_cover(book_id, 0))
 
-    def test_invalid_book_id_cannot_escape_content_root(self):
+    def test_cover_page_selects_the_configured_page(self):
+        book_id = uuid.uuid4()
+        self.write(book_id, "content_01.txt")
+        self.write(book_id, "content_03.txt")
         with override_settings(BOOKS_CONTENT_ROOT=self.root):
-            self.assertIsNone(content.book_directory("../../etc"))
-            self.assertIsNone(content.resolve_page("../../etc", 1))
+            self.assertEqual(content.resolve_cover(book_id, 3).name, "content_03.txt")
+            self.assertEqual(content.resolve_cover(book_id, 1).name, "content_01.txt")
 
-    def test_guess_mime(self):
-        self.assertEqual(content.guess_mime(JPEG_B64), "image/jpeg")
-        self.assertEqual(content.guess_mime(PNG_B64), "image/png")
-
-    def test_thumbnail_is_smaller_than_source(self):
-        """La vignette doit reellement alleger la couverture, sinon elle n'a pas d'interet."""
-        try:
-            from PIL import Image
-        except ImportError:
-            self.skipTest("Pillow n'est pas installe")
-
-        import io
-
+    def test_cover_page_falls_back_when_the_page_is_missing(self):
+        """Un reglage pointant une page absente ne doit pas priver de couverture."""
         book_id = uuid.uuid4()
-        directory = self.root / str(book_id)
-        directory.mkdir(parents=True)
+        self.write(book_id, "content_02.txt")
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.assertEqual(content.resolve_cover(book_id, 7).name, "content_02.txt")
 
-        buffer = io.BytesIO()
-        Image.new("RGB", (1600, 2200), (40, 90, 140)).save(buffer, format="JPEG", quality=95)
-        source_b64 = base64.b64encode(buffer.getvalue()).decode()
-        (directory / "content_01.txt").write_text(source_b64, encoding="utf-8")
-
-        with override_settings(
-            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
-        ):
-            path = content.resolve_cover(book_id)
-            result = content.build_thumbnail(path, 400)
-
-            self.assertIsNotNone(result)
-            payload, mime = result
-            self.assertEqual(mime, "image/jpeg")
-            self.assertLess(len(payload), len(source_b64))
-
-            with Image.open(io.BytesIO(base64.b64decode(payload))) as thumb:
-                self.assertLessEqual(thumb.width, 400)
-
-            # Deuxieme appel : sert le fichier mis en cache.
-            self.assertEqual(content.build_thumbnail(path, 400)[0], payload)
-
-    def test_thumbnail_returns_none_for_unreadable_image(self):
-        """Un fichier illisible ne doit pas faire echouer la couverture."""
-        book_id = uuid.uuid4()
-        self.write(book_id, "content_01.txt", "pas du tout une image")
-
-        with override_settings(
-            BOOKS_CONTENT_ROOT=self.root, BOOKS_THUMBNAIL_ROOT=self.root / ".thumbnails"
-        ):
-            path = content.resolve_cover(book_id)
-            self.assertIsNone(content.build_thumbnail(path, 400))
+    def test_cover_page_without_any_file(self):
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.assertIsNone(content.resolve_cover(uuid.uuid4(), 1))
 
 
 class BookAccessControlTests(TestCase):
@@ -469,15 +322,119 @@ class BookAccessControlTests(TestCase):
         detail = self.client.get(reverse("book-detail", kwargs={"id": epub.id})).json()
         self.assertEqual(detail["book_file_path"], "https://exemple.cd/books/autre.epub")
 
-    def test_epub_without_page_files_reports_no_cover(self):
-        """Un EPUB n'a pas d'images de pages : la couverture doit etre signalee absente."""
-        epub = make_book("Epub sans pages", slug="epub-sans-pages", book_format="epub")
+    def test_epub_defaults_to_a_generated_cover(self):
+        """Un EPUB cree recoit cover_page=0 : le client dessine la couverture."""
+        epub = make_book("Roman en epub", slug="roman-en-epub", book_format="epub")
         epub.allowed_classes.add(self.classe_a)
+        self.assertEqual(epub.cover_page, 0)
+
+        # On depose une page : elle ne doit pas etre servie tant que le
+        # reglage vaut 0.
+        directory = self.root / str(epub.id)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "content_01.txt").write_text(JPEG_B64, encoding="utf-8")
 
         with override_settings(BOOKS_CONTENT_ROOT=self.root):
             self.auth(self.student_user)
             body = self.client.get(reverse("book-cover", kwargs={"book_id": epub.id})).json()
             self.assertFalse(body["available"])
+            self.assertIsNone(body["content"])
+
+    def test_cover_page_can_be_configured_for_an_epub(self):
+        """Le reglage reste modifiable : un EPUB peut pointer une page reelle."""
+        epub = make_book("Epub avec couverture", slug="epub-avec-couv", book_format="epub")
+        epub.allowed_classes.add(self.classe_a)
+        epub.cover_page = 2
+        epub.save()
+
+        directory = self.root / str(epub.id)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "content_02.txt").write_text(JPEG_B64, encoding="utf-8")
+
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.auth(self.student_user)
+            body = self.client.get(reverse("book-cover", kwargs={"book_id": epub.id})).json()
+            self.assertTrue(body["available"])
+            self.assertEqual(body["content"], JPEG_B64)
+
+    def test_pdf_keeps_page_one_by_default(self):
+        self.assertEqual(self.allowed.cover_page, 1)
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.auth(self.student_user)
+            body = self.client.get(reverse("book-cover", kwargs={"book_id": self.allowed.id})).json()
+            self.assertTrue(body["available"])
+            self.assertEqual(body["content"], JPEG_B64)
+
+    def test_cover_page_zero_on_a_pdf_also_generates(self):
+        """Le reglage n'est pas lie au format : un PDF peut aussi etre genere."""
+        self.allowed.cover_page = 0
+        self.allowed.save()
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.auth(self.student_user)
+            body = self.client.get(reverse("book-cover", kwargs={"book_id": self.allowed.id})).json()
+            self.assertFalse(body["available"])
+
+    def test_availability_reports_real_page_count(self):
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.auth(self.student_user)
+            url = reverse("book-availability", kwargs={"book_id": self.allowed.id})
+            body = self.client.get(url).json()
+            self.assertEqual(body["declared_pages"], 3)
+            self.assertEqual(body["available_pages"], 1)
+            self.assertTrue(body["has_content"])
+
+    def test_anonymous_access_is_denied(self):
+        self.assertEqual(self.client.get(reverse("book-list")).status_code, 401)
+
+    def test_book_file_path_is_null_without_file(self):
+        self.auth(self.student_user)
+        book = self.client.get(reverse("book-list")).json()[0]
+        self.assertIsNone(book["book_file_path"])
+
+    @override_settings(BOOKS_PUBLIC_BASE_URL="https://exemple.cd/")
+    def test_book_file_path_uses_public_base_url(self):
+        """Le lecteur EPUB charge le fichier via cette URL."""
+        epub = make_book("Roman epub", slug="roman-epub", book_format="epub")
+        epub.book_file = "books/roman.epub"
+        epub.save()
+        epub.allowed_classes.add(self.classe_a)
+
+        self.auth(self.student_user)
+        detail = self.client.get(reverse("book-detail", kwargs={"id": epub.id})).json()
+        self.assertEqual(detail["book_file_path"], "https://exemple.cd/books/roman.epub")
+        self.assertEqual(detail["book_format"], "epub")
+
+    @override_settings(BOOKS_PUBLIC_BASE_URL="https://exemple.cd")
+    def test_book_file_path_tolerates_base_url_without_slash(self):
+        epub = make_book("Autre epub", slug="autre-epub", book_format="epub")
+        epub.book_file = "books/autre.epub"
+        epub.save()
+        epub.allowed_classes.add(self.classe_a)
+
+        self.auth(self.student_user)
+        detail = self.client.get(reverse("book-detail", kwargs={"id": epub.id})).json()
+        self.assertEqual(detail["book_file_path"], "https://exemple.cd/books/autre.epub")
+
+    def test_epub_always_reports_no_cover(self):
+        """Un EPUB utilise toujours la couverture generee par le client.
+
+        Meme lorsque des images de pages existent, elles commencent par des
+        pages blanches puis une page de titre scannee : le visuel genere est
+        plus lisible et homogene.
+        """
+        epub = make_book("Roman en epub", slug="roman-en-epub", book_format="epub")
+        epub.allowed_classes.add(self.classe_a)
+
+        # On depose volontairement des pages : elles ne doivent pas etre servies.
+        directory = self.root / str(epub.id)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "content_01.txt").write_text(JPEG_B64, encoding="utf-8")
+
+        with override_settings(BOOKS_CONTENT_ROOT=self.root):
+            self.auth(self.student_user)
+            body = self.client.get(reverse("book-cover", kwargs={"book_id": epub.id})).json()
+            self.assertFalse(body["available"])
+            self.assertIsNone(body["content"])
 
     def test_books_still_processing_are_hidden(self):
         """Un livre non traite n'a pas de pages exploitables : il reste masque."""

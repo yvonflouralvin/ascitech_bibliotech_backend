@@ -28,7 +28,8 @@ class BookPageAdmin(admin.ModelAdmin):
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
      # ✅ Colonnes affichées dans la liste
-    list_display = ('title', 'status_colored', 'display_allowed_classes')
+    list_display = ('title', 'status_colored', 'cover_source', 'display_allowed_classes')
+    list_filter = ('book_format', 'status')
     search_fields = ('title', 'description')
 
     readonly_fields = (
@@ -56,10 +57,26 @@ class BookAdmin(admin.ModelAdmin):
         ('Classes autorisées', {
             'fields': ('allowed_classes',)  # ✅ Ici l'admin peut ajouter ou retirer des classes
         }),
+        ('Couverture', {
+            'fields': ('cover_page',),
+            'description': (
+                "Numéro de la page utilisée comme couverture dans le catalogue. "
+                "Mettre <strong>0</strong> pour afficher une couverture générée "
+                "automatiquement (dégradé, titre et auteur) — c’est la valeur "
+                "par défaut des livres au format EPUB, dont les premières pages "
+                "converties sont blanches."
+            ),
+        }),
         ('Métadonnées (auto)', {
             'fields': ('slug', 'page', 'created_at', 'updated_at')
         }),
     )
+
+    @admin.display(description="Couverture")
+    def cover_source(self, obj):
+        if obj.cover_page == 0:
+            return "générée"
+        return f"page {obj.cover_page}"
 
     # ✅ Affichage coloré et lisible du status
     def status_colored(self, obj):
