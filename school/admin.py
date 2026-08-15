@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.contrib.auth import get_user_model
+from django.utils.html import format_html
 
 from .models import Book, BookPage, Class, Student
 
@@ -17,21 +18,70 @@ class ClassAdmin(admin.ModelAdmin):
         return obj.students.count()
 
 
-@admin.register(Book)
-class BookAdmin(admin.ModelAdmin):
-    list_display = ('title', 'author', 'book_format', 'page', 'publish_state', 'created_at')
-    list_filter = ('publish_state', 'book_format', 'allowed_classes')
-    search_fields = ('title', 'author', 'description')
-    filter_horizontal = ('allowed_classes',)
-    readonly_fields = ('created_at', 'updated_at')
-    prepopulated_fields = {'slug': ('title',)}
-
-
 @admin.register(BookPage)
 class BookPageAdmin(admin.ModelAdmin):
     list_display = ('title', 'book', 'order')
     list_filter = ('book',)
     search_fields = ('title',)
+
+
+@admin.register(Book)
+class BookAdmin(admin.ModelAdmin):
+     # ✅ Colonnes affichées dans la liste
+    list_display = ('title', 'status_colored', 'display_allowed_classes')
+    search_fields = ('title', 'description')
+
+    readonly_fields = (
+        'slug',
+        'page',
+        'status',
+        'processing_error',
+        'created_at',
+        'updated_at',
+    )
+
+     # allowed_classes reste modifiable
+    filter_horizontal = ('allowed_classes',)  # pratique pour ManyToManyField
+
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('title', 'author', 'description', 'book_format', 'book_file')
+        }),
+        ('Publication', {
+            'fields': ('publish_state', 'publication_date')
+        }),
+        ('Statut de traitement', {
+            'fields': ('status', 'processing_error')
+        }),
+        ('Classes autorisées', {
+            'fields': ('allowed_classes',)  # ✅ Ici l'admin peut ajouter ou retirer des classes
+        }),
+        ('Métadonnées (auto)', {
+            'fields': ('slug', 'page', 'created_at', 'updated_at')
+        }),
+    )
+
+    # ✅ Affichage coloré et lisible du status
+    def status_colored(self, obj):
+        color_map = {
+            'pending': 'gray',
+            'processing': 'blue',
+            'done': 'green',
+            'error': 'red',
+        }
+        return format_html(
+            '<span style="color:{}; font-weight:bold;">{}</span>',
+            color_map.get(obj.status, 'black'),
+            obj.get_status_display()
+        )
+
+    status_colored.short_description = "Statut"
+
+    # ✅ Afficher les classes associées dans la liste
+    def display_allowed_classes(self, obj):
+        return ", ".join([c.name for c in obj.allowed_classes.all()])
+
+    display_allowed_classes.short_description = "Classes autorisées"
 
 
 class StudentAdminForm(forms.ModelForm):

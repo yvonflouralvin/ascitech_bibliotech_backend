@@ -15,12 +15,18 @@ def accessible_books(user):
     - staff / superuser : tout le catalogue ;
     - eleve : uniquement les livres dont `allowed_classes` contient sa classe ;
     - tout autre cas (compte sans profil eleve, eleve sans classe) : rien.
+
+    Dans tous les cas, seuls les livres dont le traitement est termine
+    (`status='done'`) sont exposes : un livre en cours de conversion n'a pas
+    encore de pages exploitables sur le disque.
     """
     if not user or not user.is_authenticated:
         return Book.objects.none()
 
+    processed = Book.objects.filter(status=Book.STATUS_DONE)
+
     if user.is_staff or user.is_superuser:
-        return Book.objects.all()
+        return processed
 
     # `student_profile` est l'accesseur inverse du OneToOne Student.user.
     # Django fait heriter RelatedObjectDoesNotExist d'AttributeError, donc
@@ -29,7 +35,7 @@ def accessible_books(user):
     if student is None or student.school_class_id is None:
         return Book.objects.none()
 
-    return Book.objects.filter(allowed_classes=student.school_class_id).distinct()
+    return processed.filter(allowed_classes=student.school_class_id).distinct()
 
 
 class AccessibleBookMixin:

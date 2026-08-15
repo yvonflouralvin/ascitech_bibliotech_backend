@@ -1,8 +1,10 @@
+db.sqlite3
 /books_content/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+.env
 
 # Django stuff:
 *.log
@@ -34,3 +36,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+
+# OK
+*/migrations/__pycache__/

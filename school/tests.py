@@ -24,12 +24,18 @@ PNG_B64 = base64.b64encode(bytes.fromhex("89504e470d0a1a0a")).decode()
 
 
 def make_book(title, pages=3, **kwargs):
+    """Livre de test.
+
+    `status` vaut `done` par defaut : seuls les livres dont le traitement est
+    termine sont exposes par l'API.
+    """
     return Book.objects.create(
         title=title,
         slug=kwargs.pop("slug", title.lower().replace(" ", "-")),
         publish_state=kwargs.pop("publish_state", "published"),
         page=pages,
         book_format=kwargs.pop("book_format", "pdf"),
+        status=kwargs.pop("status", Book.STATUS_DONE),
         **kwargs,
     )
 
@@ -309,3 +315,25 @@ class BookAccessControlTests(TestCase):
 
     def test_anonymous_access_is_denied(self):
         self.assertEqual(self.client.get(reverse("book-list")).status_code, 401)
+
+    def test_books_still_processing_are_hidden(self):
+        """Un livre non traite n'a pas de pages exploitables : il reste masque."""
+        for state in (Book.STATUS_PENDING, Book.STATUS_PROCESSING, Book.STATUS_ERROR):
+            with self.subTest(status=state):
+                book = make_book(f"En cours {state}", slug=f"en-cours-{state}", status=state)
+                book.allowed_classes.add(self.classe_a)
+
+                self.auth(self.student_user)
+                titles = [item["title"] for item in self.client.get(reverse("book-list")).json()]
+                self.assertNotIn(book.title, titles)
+
+                detail = reverse("book-detail", kwargs={"id": book.id})
+                self.assertEqual(self.client.get(detail).status_code, 404)
+
+    def test_staff_also_only_sees_processed_books(self):
+        pending = make_book("Non traite", slug="non-traite", status=Book.STATUS_PENDING)
+        pending.allowed_classes.add(self.classe_a)
+
+        self.auth(self.staff_user)
+        titles = [item["title"] for item in self.client.get(reverse("book-list")).json()]
+        self.assertNotIn("Non traite", titles)

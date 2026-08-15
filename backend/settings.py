@@ -53,6 +53,8 @@ def with_scheme(origins, default_scheme="https"):
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Par defaut False : un deploiement qui oublie la variable reste sur la config sure.
+# Note : l'ancienne ecriture `os.environ.get('DEBUG', "True") == True` comparait une
+# chaine a un booleen et valait donc toujours False, quelle que soit la variable.
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -145,8 +147,8 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'bibliotech_db'),
+        'ENGINE': os.environ.get('DB_ENGINE','django.db.backends.sqlite3'),
+        'NAME': os.environ.get('DB_NAME', BASE_DIR / 'db.sqlite3'),
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
         'HOST': os.environ.get('DB_HOST', 'prod_postgres'),
@@ -177,9 +179,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en-us')
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.environ.get('TIME_ZONE', 'UTC')
 
 USE_I18N = True
 
@@ -191,17 +193,22 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+# STATIC_ROOT est defini dans les deux modes : le conteneur execute
+# `collectstatic` au demarrage, commande qui echoue sans ce reglage — et donc
+# empecherait le service de demarrer en mode DEBUG.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Dossier des fichiers statiques "bruts" (ignore s'il n'existe pas, sinon Django
+# remonte un avertissement staticfiles.W004 au demarrage).
+STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").is_dir() else []
+
 if DEBUG:
-    # Dossier des fichiers statiques "bruts" pour le dev (ignore s'il n'existe pas,
-    # sinon Django remonte un avertissement staticfiles.W004 au demarrage).
-    STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").is_dir() else []
-    # Pas de STATIC_ROOT ni de Whitenoise en dev
+    # Pas de Whitenoise ni de redirection HTTPS en developpement.
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
 else:
     # Production
-    STATIC_ROOT = BASE_DIR / "staticfiles"
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
