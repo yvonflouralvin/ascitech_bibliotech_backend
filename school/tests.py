@@ -4,15 +4,17 @@ import base64
 import shutil
 import tempfile
 import uuid
+from io import StringIO
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from . import content
-from .models import Book, Class, Student
+from .models import Book, Category, Class, Student
 
 User = get_user_model()
 
@@ -457,3 +459,211 @@ class BookAccessControlTests(TestCase):
         self.auth(self.staff_user)
         titles = [item["title"] for item in self.client.get(reverse("book-list")).json()]
         self.assertNotIn("Non traite", titles)
+
+
+class CategoryTests(TestCase):
+    """Domaines thematiques : socle, exposition dans l'API, pre-classement."""
+
+    SEEDED_SLUGS = [
+        "sciences-et-mathematiques",
+        "informatique-technologie-et-robotique",
+        "langues-et-litterature",
+        "sciences-humaines-et-sociales",
+        "economie-gestion-et-entrepreneuriat",
+        "arts-et-culture",
+        "developpement-personnel-et-orientation",
+        "religion-et-spiritualite",
+        "encyclopedies-et-ouvrages-de-reference",
+    ]
+
+    def setUp(self):
+        self.classe = Class.objects.create(name="5eme A")
+        self.user = User.objects.create_user(
+            username="eleve-cat", email="cat@test.cd", password="motdepasse123"
+        )
+        Student.objects.create(
+            user=self.user, school_class=self.classe, full_name="Eleve Categorie"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_migration_seeds_the_nine_categories(self):
+        slugs = list(Category.objects.values_list("slug", flat=True))
+        for slug in self.SEEDED_SLUGS:
+            self.assertIn(slug, slugs)
+
+    def test_categories_are_ordered_for_display(self):
+        """L'ordre est celui du classement retenu, pas l'alphabet."""
+        names = list(Category.objects.values_list("slug", flat=True))
+        self.assertEqual(names[0], "sciences-et-mathematiques")
+        self.assertEqual(names[8], "encyclopedies-et-ouvrages-de-reference")
+
+    def test_slug_is_derived_from_the_name(self):
+        category = Category.objects.create(name="Vie pratique")
+        self.assertEqual(category.slug, "vie-pratique")
+
+    def test_slug_stays_unique(self):
+        Category.objects.create(name="Vie pratique")
+        duplicate = Category.objects.create(name="Vie Pratique !")
+        self.assertEqual(duplicate.slug, "vie-pratique-1")
+
+    def test_api_exposes_the_categories_of_a_book(self):
+        book = make_book("Algebre 4eme", slug="algebre-4eme")
+        book.allowed_classes.add(self.classe)
+        maths = Category.objects.get(slug="sciences-et-mathematiques")
+        book.categories.add(maths)
+
+        payload = self.client.get(reverse("book-list")).json()[0]
+        self.assertEqual(
+            payload["categories"],
+            [
+                {
+                    "id": maths.id,
+                    "name": maths.name,
+                    "slug": maths.slug,
+                    "order": maths.order,
+                }
+            ],
+        )
+
+    def test_a_book_can_carry_several_categories(self):
+        book = make_book("Robotique en classe", slug="robotique-en-classe")
+        book.allowed_classes.add(self.classe)
+        book.categories.set(
+            Category.objects.filter(
+                slug__in=[
+                    "sciences-et-mathematiques",
+                    "informatique-technologie-et-robotique",
+                ]
+            )
+        )
+
+        payload = self.client.get(reverse("book-list")).json()[0]
+        self.assertEqual(len(payload["categories"]), 2)
+
+    def test_an_unclassified_book_reports_an_empty_list(self):
+        book = make_book("Sans categorie", slug="sans-categorie")
+        book.allowed_classes.add(self.classe)
+
+        payload = self.client.get(reverse("book-list")).json()[0]
+        self.assertEqual(payload["categories"], [])
+
+    def test_categories_do_not_leak_the_access_rule(self):
+        """L'ajout du champ ne doit pas rouvrir la fuite d'`allowed_classes`."""
+        book = make_book("Controle", slug="controle-categorie")
+        book.allowed_classes.add(self.classe)
+
+        payload = self.client.get(reverse("book-list")).json()[0]
+        self.assertNotIn("allowed_classes", payload)
+
+
+class ClassifyBooksCommandTests(TestCase):
+    """Pre-classement automatique : propose, n'ecrit que sur demande."""
+
+    def run_command(self, **options):
+        out = StringIO()
+        call_command("classify_books", stdout=out, stderr=out, **options)
+        return out.getvalue()
+
+    def test_dry_run_writes_nothing(self):
+        book = make_book("Cours de mathematiques", slug="cours-de-mathematiques")
+        output = self.run_command()
+
+        self.assertEqual(book.categories.count(), 0)
+        self.assertIn("Simulation", output)
+
+    def test_apply_assigns_the_matching_category(self):
+        book = make_book("Cours de mathematiques", slug="cours-de-mathematiques")
+        self.run_command(apply=True)
+
+        self.assertEqual(
+            list(book.categories.values_list("slug", flat=True)),
+            ["sciences-et-mathematiques"],
+        )
+
+    def test_a_title_can_match_several_domains(self):
+        book = make_book("Initiation a la robotique et aux sciences", slug="robot-sciences")
+        self.run_command(apply=True)
+
+        slugs = set(book.categories.values_list("slug", flat=True))
+        self.assertEqual(
+            slugs,
+            {"sciences-et-mathematiques", "informatique-technologie-et-robotique"},
+        )
+
+    def test_an_unrecognised_title_is_left_undecided(self):
+        book = make_book("Le grand voyage", slug="le-grand-voyage")
+        output = self.run_command(apply=True)
+
+        self.assertEqual(book.categories.count(), 0)
+        self.assertIn("indecis", output)
+
+    def test_word_boundaries_avoid_false_positives(self):
+        """« partage » ne doit pas declencher la categorie « art »."""
+        book = make_book("Le partage des taches", slug="le-partage-des-taches")
+        self.run_command(apply=True)
+
+        self.assertEqual(book.categories.count(), 0)
+
+    def test_an_already_classified_book_is_left_alone(self):
+        book = make_book("Cours de mathematiques", slug="cours-de-mathematiques")
+        arts = Category.objects.get(slug="arts-et-culture")
+        book.categories.add(arts)
+
+        self.run_command(apply=True)
+
+        self.assertEqual(list(book.categories.all()), [arts])
+
+    def test_force_reclassifies_an_existing_book(self):
+        book = make_book("Cours de mathematiques", slug="cours-de-mathematiques")
+        book.categories.add(Category.objects.get(slug="arts-et-culture"))
+
+        self.run_command(apply=True, force=True)
+
+        self.assertEqual(
+            list(book.categories.values_list("slug", flat=True)),
+            ["sciences-et-mathematiques"],
+        )
+
+    def test_a_collection_prefix_is_not_a_subject(self):
+        """« STEAM SCIENCE. » ouvre 40 titres du fonds : c'est un editeur.
+
+        Compte comme mot-cle, il rangerait « Learn to Draw » dans les
+        sciences. La tete de titre partagee par assez d'ouvrages est donc
+        ecartee du score.
+        """
+        for index in range(5):
+            make_book(f"COLLECTION SCIENCES. Cours de dessin {index}", slug=f"coll-{index}")
+
+        self.run_command(apply=True)
+
+        for book in Book.objects.all():
+            self.assertEqual(
+                list(book.categories.values_list("slug", flat=True)), ["arts-et-culture"]
+            )
+
+    def test_an_isolated_prefix_keeps_its_weight(self):
+        """Une tete de titre unique reste un signal : rien n'est code en dur."""
+        book = make_book("COURS DE SCIENCES. Cours de dessin", slug="cours-sciences")
+
+        self.run_command(apply=True)
+
+        self.assertEqual(
+            set(book.categories.values_list("slug", flat=True)),
+            {"sciences-et-mathematiques", "arts-et-culture"},
+        )
+
+    def test_the_description_alone_needs_several_hits(self):
+        """Une seule occurrence dans la description ne suffit pas a classer."""
+        weak = make_book("Recueil", slug="recueil", description="Un peu de musique.")
+        strong = make_book(
+            "Anthologie",
+            slug="anthologie",
+            description="Musique, danse et peinture : trois formes d'art.",
+        )
+        self.run_command(apply=True)
+
+        self.assertEqual(weak.categories.count(), 0)
+        self.assertEqual(
+            list(strong.categories.values_list("slug", flat=True)), ["arts-et-culture"]
+        )

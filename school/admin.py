@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.utils.html import format_html
 
-from .models import Book, BookPage, Class, Student
+from .models import Book, BookPage, Category, Class, Student
 
 User = get_user_model()
 
@@ -18,6 +18,19 @@ class ClassAdmin(admin.ModelAdmin):
         return obj.students.count()
 
 
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'order', 'book_count')
+    list_editable = ('order',)
+    search_fields = ('name',)
+    readonly_fields = ('slug',)
+    fields = ('name', 'description', 'order', 'slug')
+
+    @admin.display(description="Livres classes")
+    def book_count(self, obj):
+        return obj.books.count()
+
+
 @admin.register(BookPage)
 class BookPageAdmin(admin.ModelAdmin):
     list_display = ('title', 'book', 'order')
@@ -28,9 +41,18 @@ class BookPageAdmin(admin.ModelAdmin):
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
      # ✅ Colonnes affichées dans la liste
-    list_display = ('title', 'status_colored', 'cover_source', 'display_allowed_classes')
-    list_filter = ('book_format', 'status')
+    list_display = (
+        'title',
+        'status_colored',
+        'display_categories',
+        'cover_source',
+        'display_allowed_classes',
+    )
+    # `categories__isnull` permet de retrouver d'un clic les livres pas encore
+    # classes, le cas le plus utile pendant la reprise du fonds existant.
+    list_filter = ('book_format', 'status', 'categories', ('categories', admin.EmptyFieldListFilter))
     search_fields = ('title', 'description')
+    actions = ('action_clear_categories',)
 
     readonly_fields = (
         'slug',
@@ -42,7 +64,7 @@ class BookAdmin(admin.ModelAdmin):
     )
 
      # allowed_classes reste modifiable
-    filter_horizontal = ('allowed_classes',)  # pratique pour ManyToManyField
+    filter_horizontal = ('allowed_classes', 'categories')  # pratique pour ManyToManyField
 
     fieldsets = (
         ('Informations générales', {
@@ -56,6 +78,14 @@ class BookAdmin(admin.ModelAdmin):
         }),
         ('Classes autorisées', {
             'fields': ('allowed_classes',)  # ✅ Ici l'admin peut ajouter ou retirer des classes
+        }),
+        ('Catégories', {
+            'fields': ('categories',),
+            'description': (
+                "Domaines thématiques du livre. Un ouvrage peut en couvrir "
+                "plusieurs ; laisser vide place le livre uniquement dans "
+                "« Tout le catalogue »."
+            ),
         }),
         ('Couverture', {
             'fields': ('cover_page',),
@@ -93,6 +123,24 @@ class BookAdmin(admin.ModelAdmin):
         )
 
     status_colored.short_description = "Statut"
+
+    def get_queryset(self, request):
+        # Deux colonnes de la liste parcourent des relations multiples :
+        # sans prechargement, l'admin emet deux requetes par livre affiche.
+        return super().get_queryset(request).prefetch_related('categories', 'allowed_classes')
+
+    @admin.display(description="Catégories")
+    def display_categories(self, obj):
+        names = [c.name for c in obj.categories.all()]
+        if not names:
+            return format_html('<span style="color:gray;">non classé</span>')
+        return ", ".join(names)
+
+    @admin.action(description="Retirer toutes les catégories des livres sélectionnés")
+    def action_clear_categories(self, request, queryset):
+        for book in queryset:
+            book.categories.clear()
+        self.message_user(request, f"{queryset.count()} livre(s) declasse(s).")
 
     # ✅ Afficher les classes associées dans la liste
     def display_allowed_classes(self, obj):
