@@ -1,7 +1,23 @@
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import Book, BookPage
+from .models import Book, BookPage, Category
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """Domaine thematique, imbrique dans la fiche d'un livre.
+
+    Le client filtre le catalogue sur le `slug` : il reste stable meme si le
+    libelle est retouche dans l'administration.
+    """
+
+    class Meta:
+        model = Category
+        # `order` est expose pour que le client puisse presenter les filtres
+        # dans l'ordre voulu par l'administration, et non par ordre
+        # alphabetique : les categories arrivent eclatees livre par livre.
+        fields = ['id', 'name', 'slug', 'order']
+        read_only_fields = fields
 
 
 class BookSerializer(serializers.ModelSerializer):
@@ -12,6 +28,11 @@ class BookSerializer(serializers.ModelSerializer):
     """
 
     book_file_path = serializers.SerializerMethodField()
+
+    # Imbriquees plutot que referencees par identifiant : le catalogue est mis
+    # en cache hors ligne cote client, qui doit pouvoir afficher et filtrer les
+    # categories sans second appel reseau.
+    categories = CategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Book
@@ -26,6 +47,7 @@ class BookSerializer(serializers.ModelSerializer):
             'page',
             'book_format',
             'book_file_path',
+            'categories',
             'created_at',
             'updated_at',
         ]

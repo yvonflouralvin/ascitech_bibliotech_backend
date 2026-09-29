@@ -62,7 +62,9 @@ class BookListAPIView(AccessibleBookMixin, generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        books = self.get_accessible_books()
+        # Les categories sont serialisees pour chaque livre : sans prechargement,
+        # le catalogue declencherait une requete par ouvrage.
+        books = self.get_accessible_books().prefetch_related("categories")
         if user.is_staff or user.is_superuser:
             return books.order_by("-created_at")
         return books.order_by("title")
@@ -75,7 +77,7 @@ class BookDetailAPIView(AccessibleBookMixin, generics.RetrieveAPIView):
     lookup_field = "id"
 
     def get_queryset(self):
-        return self.get_accessible_books()
+        return self.get_accessible_books().prefetch_related("categories")
 
 
 class BookPagesByBookAPIView(AccessibleBookMixin, generics.ListAPIView):

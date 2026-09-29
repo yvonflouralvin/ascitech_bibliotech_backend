@@ -30,6 +30,49 @@ class Student(models.Model):
         return f"{self.full_name} ({self.user.email})"
 
 
+class Category(models.Model):
+    """Domaine thematique d'un livre.
+
+    La liste est administrable : les neuf categories initiales sont creees par
+    une migration de donnees, mais l'administration peut en ajouter. L'ordre
+    d'affichage est porte par `order` et non par l'alphabet, afin de conserver
+    le classement retenu (les sciences en tete, les ouvrages de reference en
+    fin de liste).
+    """
+
+    name = models.CharField(max_length=120, unique=True, verbose_name="Nom")
+    slug = models.SlugField(max_length=140, unique=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    order = models.PositiveSmallIntegerField(
+        default=100,
+        verbose_name="Ordre d'affichage",
+        help_text="Les valeurs les plus basses apparaissent en premier.",
+    )
+
+    class Meta:
+        verbose_name = 'Categorie'
+        verbose_name_plural = 'Categories'
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        # Le slug identifie la categorie cote client (filtre du catalogue) :
+        # il est derive du nom une seule fois, puis reste stable meme si le
+        # libelle est retouche, pour ne pas invalider les liens existants.
+        if not self.slug and self.name:
+            base_slug = slugify(self.name)
+            slug = base_slug
+            counter = 1
+            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+
+        super().save(*args, **kwargs)
+
+
 class Book(models.Model):
     PUBLISH_STATE_CHOICES = [
         ('draft', 'Draft'),
@@ -90,6 +133,17 @@ class Book(models.Model):
 
     # Nouvelle relation Many-to-Many pour les classes
     allowed_classes = models.ManyToManyField('Class', blank=True, related_name='accessible_books')
+
+    # Domaines thematiques. Un ouvrage peut en couvrir plusieurs (un manuel de
+    # robotique pedagogique releve autant de la technologie que des sciences),
+    # d'ou une relation multiple plutot qu'un rayon unique. Le champ reste
+    # facultatif : un livre non classe apparait dans « Tout le catalogue ».
+    categories = models.ManyToManyField(
+        'Category',
+        blank=True,
+        related_name='books',
+        verbose_name="Categories",
+    )
 
     # ✅ Nouveau champ status
     status = models.CharField(
